@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0e6b5e">
+<meta name="robots" content="noindex, nofollow">
+<title>Duo</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#e9ece8; --surface:#fff; --ink:#16211f; --muted:#6c7b78;
+  --hairline:#d3dad6; --accent:#0e6b5e; --accent-d:#0a5348; --soft:#dbe7e2; --danger:#9b2c25;
+  --r-lg:20px; --r-md:14px; --shadow:0 1px 2px rgba(22,33,31,.07); --topbar-h:62px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:"Instrument Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+[hidden]{display:none !important}
+
+/* --- Connexion --- */
+.login{min-height:100dvh;display:grid;place-items:center;padding:32px 20px calc(32px + env(safe-area-inset-bottom))}
+.panel{width:100%;max-width:380px}
+.mark{display:flex;align-items:center;height:12px;margin-bottom:30px}
+.mark i{width:11px;height:11px;border-radius:50%;flex:none;display:block}
+.mark i:first-child{background:var(--accent)}
+.mark i:last-child{background:var(--ink)}
+.mark span{height:1px;background:var(--ink);flex:1;transform-origin:left;animation:draw .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes draw{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+h1{font-size:44px;font-weight:600;letter-spacing:-.03em;margin:0 0 8px}
+.lede{margin:0 0 30px;color:var(--muted);max-width:34ch}
+.form{display:grid;gap:18px}
+.field{display:grid;gap:6px}
+.field label{font-size:14px;font-weight:500;color:var(--muted)}
+.field input{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);padding:13px 14px;width:100%;transition:border-color .15s}
+.field input:focus{border-color:var(--accent)}
+.help{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--muted)}
+.btn{border:1px solid transparent;border-radius:var(--r-md);padding:13px 18px;cursor:pointer;font-weight:500}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-d)}
+.btn-primary:disabled{background:var(--muted);cursor:progress}
+.btn-ghost{background:transparent;border-color:var(--hairline)}
+.btn-danger{background:var(--danger);color:#fff}
+.alert{margin:0;padding:11px 13px;border-radius:var(--r-md);background:#fbeceb;color:var(--danger);font-size:14px}
+
+/* --- Conversation --- */
+.chat{height:100dvh;display:grid;grid-template-rows:var(--topbar-h) 1fr auto auto auto;max-width:780px;margin:0 auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;
+  padding-top:env(safe-area-inset-top);height:calc(var(--topbar-h) + env(safe-area-inset-top));
+  background:var(--surface);border-bottom:1px solid var(--hairline);position:relative;z-index:5}
+.who{display:flex;align-items:center;gap:11px;min-width:0}
+.names{display:grid;min-width:0}
+.names strong{font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:13px;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--hairline);flex:none}
+.dot.on{background:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.icon-btn{background:none;border:0;padding:8px;border-radius:50%;cursor:pointer;color:var(--muted);display:grid;place-items:center}
+.icon-btn:hover{background:var(--paper);color:var(--ink)}
+.icon-btn svg{fill:currentColor}
+.actions{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--hairline);
+  border-radius:var(--r-md);box-shadow:0 8px 24px rgba(22,33,31,.13);min-width:226px;overflow:hidden}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 15px;cursor:pointer;font-size:15px}
+.menu button:hover{background:var(--paper)}
+.menu .danger{color:var(--danger)}
+
+.messages{overflow-y:auto;overscroll-behavior:contain;padding:18px 16px 6px;display:flex;flex-direction:column;gap:3px;-webkit-overflow-scrolling:touch}
+.empty{margin:auto;color:var(--muted);text-align:center;max-width:26ch}
+.daymark{align-self:center;font-size:12.5px;color:var(--muted);background:var(--surface);border:1px solid var(--hairline);
+  border-radius:999px;padding:3px 12px;margin:14px 0 10px}
+.msg{position:relative;max-width:min(76%,520px);padding:9px 13px 7px;border-radius:var(--r-lg);
+  box-shadow:var(--shadow);overflow-wrap:anywhere;white-space:pre-wrap}
+.in{align-self:flex-start;background:var(--surface);border:1px solid var(--hairline);border-bottom-left-radius:6px}
+.out{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:6px}
+.msg+.msg{margin-top:3px}
+.msg.first{margin-top:12px}
+.meta{display:flex;align-items:center;justify-content:flex-end;gap:5px;margin-top:2px;font-size:11.5px;line-height:1;opacity:.72}
+.out .meta{color:#e7f2ef}
+.in .meta{color:var(--muted)}
+.ticks{width:16px;height:11px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ticks.read{stroke:#8ff0d8;opacity:1}
+.del{position:absolute;top:-9px;inset-inline-start:-9px;width:26px;height:26px;border-radius:50%;
+  border:1px solid var(--hairline);background:var(--surface);color:var(--danger);cursor:pointer;
+  display:none;place-items:center;padding:0;box-shadow:var(--shadow)}
+.out:hover .del,.out:focus-within .del,.out.touched .del{display:grid}
+.del svg{width:12px;height:12px;fill:currentColor}
+.unreadable{font-style:italic;opacity:.8}
+
+.typing{display:flex;align-items:center;gap:9px;padding:4px 18px 6px;font-size:13px;color:var(--muted)}
+.tb{display:inline-flex;gap:3px}
+.tb i{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite}
+.tb i:nth-child(2){animation-delay:.18s}
+.tb i:nth-child(3){animation-delay:.36s}
+@keyframes blink{0%,60%,100%{opacity:.28}30%{opacity:1}}
+
+.banner{margin:0;padding:9px 16px;font-size:13.5px;background:#f6efdd;color:#6b5312;text-align:center}
+.composer{display:flex;align-items:flex-end;gap:9px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  background:var(--surface);border-top:1px solid var(--hairline)}
+.composer textarea{flex:1;resize:none;max-height:140px;border:1px solid var(--hairline);border-radius:20px;
+  padding:11px 15px;background:var(--paper);line-height:1.4}
+.composer textarea:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.send{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--accent);color:#fff;
+  cursor:pointer;display:grid;place-items:center;transition:transform .12s,background .15s}
+.send:hover{background:var(--accent-d)}
+.send:active{transform:scale(.93)}
+.send svg{fill:currentColor}
+
+.overlay{position:fixed;inset:0;background:rgba(22,33,31,.42);display:grid;place-items:center;padding:20px;z-index:20}
+.dialog{background:var(--surface);border-radius:var(--r-lg);padding:22px;width:100%;max-width:380px}
+.dialog h2{margin:0 0 8px;font-size:19px;font-weight:600}
+.dialog p{margin:0 0 20px;color:var(--muted)}
+.row{display:flex;gap:10px;justify-content:flex-end}
+@media (min-width:781px){.chat{border-inline:1px solid var(--hairline);background:var(--paper)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;transition-duration:.001ms !important}}
+</style>
+</head>
+<body>
+
+<main id="screen-login" class="login">
+  <div class="panel">
+    <div class="mark" aria-hidden="true"><i></i><span></span><i></i></div>
+    <h1>Duo</h1>
+    <p class="lede">Une ligne directe entre deux personnes, où que vous soyez.</p>
+
+    <form id="login-form" class="form" novalidate>
+      <div class="field">
+        <label for="pseudo">Votre prénom ou pseudo</label>
+        <input id="pseudo" type="text" autocomplete="nickname" autocapitalize="words"
+               spellcheck="false" maxlength="20" required>
+      </div>
+      <div class="field">
+        <label for="passphrase">Clé de conversation</label>
+        <input id="passphrase" type="password" autocomplete="off" required>
+        <p class="help">Le mot secret convenu à deux. Il doit être identique des deux côtés :
+          c'est lui qui chiffre les messages. Personne d'autre ne peut lire la conversation.</p>
+      </div>
+      <p id="login-error" class="alert" role="alert" hidden></p>
+      <button id="login-submit" class="btn btn-primary" type="submit">Ouvrir la ligne</button>
+    </form>
+  </div>
+</main>
+
+<div id="screen-chat" class="chat" hidden>
+  <header class="topbar">
+    <div class="who">
+      <span id="dot" class="dot" aria-hidden="true"></span>
+      <div class="names">
+        <strong id="peer-name">—</strong>
+        <span id="presence" class="status">connexion…</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="btn-menu" class="icon-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+          <circle cx="10" cy="4" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="10" cy="16" r="1.6"/>
+        </svg>
+      </button>
+      <div id="menu" class="menu" hidden>
+        <button id="btn-clear" class="danger" type="button">Supprimer la conversation</button>
+        <button id="btn-logout" type="button">Se déconnecter</button>
+      </div>
+    </div>
+  </header>
+
+  <section id="messages" class="messages" aria-live="polite" aria-label="Messages">
+    <p id="empty" class="empty">La conversation est vide. Écrivez le premier message.</p>
+  </section>
+
+  <div id="typing" class="typing" hidden>
+    <span class="tb"><i></i><i></i><i></i></span><span id="typing-text">écrit…</span>
+  </div>
+
+  <p id="banner" class="banner" role="status" hidden></p>
+
+  <form id="composer" class="composer">
+    <textarea id="input" rows="1" placeholder="Votre message" maxlength="4000" autocomplete="off"></textarea>
+    <button id="send" class="send" type="submit" aria-label="Envoyer">
+      <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><path d="M3.6 20.4 21 12 3.6 3.6 3.6 10.2 15 12 3.6 13.8Z"/></svg>
+    </button>
+  </form>
+</div>
+
+<div id="confirm" class="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <h2 id="confirm-title">Titre</h2>
+    <p id="confirm-text"></p>
+    <div class="row">
+      <button id="confirm-no" class="btn btn-ghost" type="button">Annuler</button>
+      <button id="confirm-yes" class="btn btn-danger" type="button">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+/* =======================================================================
+   Duo — messagerie privée à deux, sans serveur à héberger.
+   Firebase Realtime Database pour le relais et l'historique,
+   AES-256-GCM dans le navigateur : le contenu reste illisible côté Google.
+   ======================================================================= */
+
+import { firebaseConfig } from './config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { getDatabase, ref, push, set, update, remove, get, onValue, onChildAdded,
+         onChildRemoved, onChildChanged, onDisconnect, serverTimestamp, query, limitToLast }
+  from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
+
+const RACINE = 'duo';           // nœud utilisé dans la base, isolé de vos autres projets
+const LIMITE = 500;             // messages chargés à l'ouverture
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  login: $('screen-login'), form: $('login-form'), error: $('login-error'), submit: $('login-submit'),
+  pseudo: $('pseudo'), passphrase: $('passphrase'),
+  chat: $('screen-chat'), peerName: $('peer-name'), dot: $('dot'), presence: $('presence'),
+  messages: $('messages'), empty: $('empty'), typing: $('typing'), typingText: $('typing-text'),
+  banner: $('banner'), composer: $('composer'), input: $('input'),
+  menuBtn: $('btn-menu'), menu: $('menu'), clearBtn: $('btn-clear'), logoutBtn: $('btn-logout'),
+  confirm: $('confirm'), confirmTitle: $('confirm-title'), confirmText: $('confirm-text'),
+  confirmYes: $('confirm-yes'), confirmNo: $('confirm-no')
+};
+
+const S = {
+  moi: null, pair: null, cle: null,
+  noeuds: new Map(), dernierAuteur: null, dernierJour: null,
+  pairEnLigne: false, pairEcrit: false, minuteurFrappe: null, dernierSignal: 0
+};
+
+/* ----------------------------------------------------------------------
+   1. Chiffrement de bout en bout
+   ---------------------------------------------------------------------- */
+const ENC = new TextEncoder(), DEC = new TextDecoder();
+const b64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
+const deb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function deriverCle(phrase) {
+  const sel = ENC.encode('duo/v1/cle-partagee');
+  const mat = await crypto.subtle.importKey('raw', ENC.encode(phrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: sel, iterations: 310000, hash: 'SHA-256' },
+    mat, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+}
+async function chiffrer(texte) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, S.cle, ENC.encode(texte));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function dechiffrer(iv, ct) {
+  try {
+    const clair = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deb64(iv) }, S.cle, deb64(ct));
+    return { ok: true, texte: DEC.decode(clair) };
+  } catch {
+    return { ok: false, texte: 'Message illisible : clé de conversation différente.' };
+  }
+}
+
+/* ----------------------------------------------------------------------
+   2. Connexion : un pseudo, une clé
+   ---------------------------------------------------------------------- */
+function erreur(msg) { el.error.textContent = msg; el.error.hidden = false; }
+
+const pseudoMemorise = localStorage.getItem('duo.pseudo');
+if (pseudoMemorise) el.pseudo.value = pseudoMemorise;
+
+el.form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  el.error.hidden = true;
+
+  if (!window.crypto?.subtle) return erreur("Ouvrez cette page en https:// pour activer le chiffrement.");
+  if (firebaseConfig.apiKey.includes('COLLEZ')) return erreur('La configuration Firebase n’a pas été renseignée dans config.js.');
+
+  const pseudo = el.pseudo.value.trim();
+  const phrase = el.passphrase.value;
+  if (!pseudo || !phrase) return erreur('Renseignez les deux champs.');
+  if (!/^[\p{L}0-9 ._-]{2,20}$/u.test(pseudo)) return erreur('Pseudo invalide : 2 à 20 caractères.');
+
+  el.submit.disabled = true; el.submit.textContent = 'Connexion…';
+  try {
+    await signInAnonymously(auth);
+
+    const instantane = await get(ref(db, `${RACINE}/membres`));
+    const membres = instantane.val() || {};
+    const noms = Object.keys(membres);
+
+    if (!noms.includes(pseudo)) {
+      if (noms.length >= 2) {
+        throw new Error(`Les deux places sont déjà prises par ${noms.join(' et ')}.`);
+      }
+      await set(ref(db, `${RACINE}/membres/${pseudo}`), true);
+      noms.push(pseudo);
+    }
+
+    S.moi = pseudo;
+    S.pair = noms.find((n) => n !== pseudo) || null;
+    S.cle = await deriverCle(phrase);
+    localStorage.setItem('duo.pseudo', pseudo);
+    el.passphrase.value = '';
+    ouvrirConversation();
+  } catch (err) {
+    erreur(err?.message?.startsWith('Les deux places')
+      ? err.message
+      : 'Connexion impossible. Vérifiez le réseau et les règles Firebase.');
+  } finally {
+    el.submit.disabled = false; el.submit.textContent = 'Ouvrir la ligne';
+  }
+});
+
+/* ----------------------------------------------------------------------
+   3. Ouverture de la conversation
+   ---------------------------------------------------------------------- */
+function ouvrirConversation() {
+  el.login.hidden = true; el.chat.hidden = false;
+  el.peerName.textContent = S.pair || 'En attente de votre interlocuteur';
+  el.input.focus({ preventScroll: true });
+
+  seDeclarerEnLigne();
+  surveillerMembres();
+  ecouterMessages();
+  surveillerConnexion();
+}
+
+/* Le pair arrive peut-être après nous : on reste à l'écoute. */
+function surveillerMembres() {
+  onValue(ref(db, `${RACINE}/membres`), (snap) => {
+    const noms = Object.keys(snap.val() || {});
+    const pair = noms.find((n) => n !== S.moi) || null;
+    if (pair === S.pair) return;
+    S.pair = pair;
+    el.peerName.textContent = pair || 'En attente de votre interlocuteur';
+    if (pair) ecouterPair();
+  });
+}
+
+let ecoutePairActive = false;
+function ecouterPair() {
+  if (ecoutePairActive || !S.pair) return;
+  ecoutePairActive = true;
+  onValue(ref(db, `${RACINE}/presence/${S.pair}`), (snap) => {
+    const v = snap.val();
+    majPresence(!!v?.enLigne, v?.vu);
+  });
+  onValue(ref(db, `${RACINE}/ecrit/${S.pair}`), (snap) => afficherFrappe(snap.val() === true));
+}
+
+/* Présence : la base bascule automatiquement en « hors ligne » si l'appareil se coupe. */
+function seDeclarerEnLigne() {
+  const moi = ref(db, `${RACINE}/presence/${S.moi}`);
+  onDisconnect(moi).set({ enLigne: false, vu: serverTimestamp() });
+  set(moi, { enLigne: true, vu: serverTimestamp() });
+  onDisconnect(ref(db, `${RACINE}/ecrit/${S.moi}`)).remove();
+}
+
+function surveillerConnexion() {
+  onValue(ref(db, '.info/connected'), (snap) => {
+    if (snap.val()) { bandeau(null); seDeclarerEnLigne(); }
+    else bandeau('Connexion perdue. Reprise automatique…');
+  });
+}
+
+/* ----------------------------------------------------------------------
+   4. Messages
+   ---------------------------------------------------------------------- */
+const refMessages = () => ref(db, `${RACINE}/messages`);
+
+function ecouterMessages() {
+  const q = query(refMessages(), limitToLast(LIMITE));
+
+  onChildAdded(q, async (snap) => {
+    const m = { id: snap.key, ...snap.val() };
+    await afficherMessage(m);
+    defilerEnBas();
+    if (m.de !== S.moi) {
+      if (!m.recu) update(snap.ref, { recu: true }).catch(() => {});
+      marquerLu();
+    }
+  });
+
+  onChildChanged(q, (snap) => {
+    const m = snap.val();
+    const n = S.noeuds.get(snap.key);
+    if (n && m.de === S.moi) majEtat(n, m.lu ? 'lu' : m.recu ? 'recu' : 'envoye');
+  });
+
+  onChildRemoved(q, (snap) => {
+    const n = S.noeuds.get(snap.key);
+    if (n) { n.remove(); S.noeuds.delete(snap.key); }
+    majVide();
+  });
+}
+
+el.composer.addEventListener('submit', async (e) => { e.preventDefault(); await envoyer(); });
+
+el.input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(min-width:781px)').matches) {
+    e.preventDefault(); envoyer();
+  }
+});
+
+el.input.addEventListener('input', () => {
+  el.input.style.height = 'auto';
+  el.input.style.height = Math.min(el.input.scrollHeight, 140) + 'px';
+  const t = Date.now();
+  if (t - S.dernierSignal > 1500) {
+    S.dernierSignal = t;
+    set(ref(db, `${RACINE}/ecrit/${S.moi}`), el.input.value.length > 0).catch(() => {});
+  }
+  clearTimeout(S.minuteurFrappe);
+  S.minuteurFrappe = setTimeout(() => set(ref(db, `${RACINE}/ecrit/${S.moi}`), false).catch(() => {}), 2500);
+});
+
+async function envoyer() {
+  const texte = el.input.value.trim();
+  if (!texte) return;
+  el.input.value = ''; el.input.style.height = 'auto';
+
+  const { iv, ct } = await chiffrer(texte);
+  try {
+    await push(refMessages(), { de: S.moi, iv, ct, le: serverTimestamp(), recu: false, lu: false });
+    set(ref(db, `${RACINE}/ecrit/${S.moi}`), false).catch(() => {});
+  } catch {
+    bandeau('Message non envoyé. Vérifiez votre connexion.');
+    el.input.value = texte;
+  }
+}
+
+function marquerLu() {
+  if (document.visibilityState !== 'visible' || !document.hasFocus()) return;
+  for (const [id, n] of S.noeuds) {
+    if (n.dataset.de !== S.moi && n.dataset.lu !== '1') {
+      n.dataset.lu = '1';
+      update(ref(db, `${RACINE}/messages/${id}`), { lu: true, recu: true }).catch(() => {});
+    }
+  }
+}
+document.addEventListener('visibilitychange', marquerLu);
+window.addEventListener('focus', marquerLu);
+el.messages.addEventListener('click', marquerLu);
+
+/* ----------------------------------------------------------------------
+   5. Affichage (jamais de HTML issu d'un message : uniquement du texte)
+   ---------------------------------------------------------------------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function coches() {
+  const s = document.createElementNS(SVGNS, 'svg');
+  s.setAttribute('viewBox', '0 0 20 12'); s.setAttribute('class', 'ticks');
+  const a = document.createElementNS(SVGNS, 'path'); a.setAttribute('d', 'M1 6.6 4.2 10 10.6 2.4');
+  const b = document.createElementNS(SVGNS, 'path'); b.setAttribute('d', 'M8.4 9.6 9.4 10.6 16.4 2.4');
+  b.setAttribute('class', 'tick2');
+  s.append(a, b); return s;
+}
+
+async function afficherMessage(m) {
+  if (S.noeuds.has(m.id)) return;
+  const quand = m.le || Date.now();
+  marqueJour(quand);
+
+  const mien = m.de === S.moi;
+  const n = document.createElement('article');
+  n.className = 'msg ' + (mien ? 'out' : 'in');
+  n.dataset.de = m.de;
+  if (S.dernierAuteur !== m.de) n.classList.add('first');
+  S.dernierAuteur = m.de;
+
+  const corps = document.createElement('span');
+  const clair = await dechiffrer(m.iv, m.ct);
+  corps.textContent = clair.texte;
+  if (!clair.ok) n.classList.add('unreadable');
+  n.appendChild(corps);
+
+  const meta = document.createElement('span'); meta.className = 'meta';
+  const t = document.createElement('time');
+  const d = new Date(quand);
+  t.dateTime = d.toISOString();
+  t.textContent = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  meta.appendChild(t);
+  n.appendChild(meta);
+
+  if (mien) {
+    meta.appendChild(coches());
+    majEtat(n, m.lu ? 'lu' : m.recu ? 'recu' : 'envoye');
+
+    const sup = document.createElement('button');
+    sup.type = 'button'; sup.className = 'del';
+    sup.setAttribute('aria-label', 'Supprimer ce message');
+    const x = document.createElementNS(SVGNS, 'svg'); x.setAttribute('viewBox', '0 0 12 12');
+    const xp = document.createElementNS(SVGNS, 'path');
+    xp.setAttribute('d', 'M1.6.4 6 4.8 10.4.4 11.6 1.6 7.2 6l4.4 4.4-1.2 1.2L6 7.2l-4.4 4.4L.4 10.4 4.8 6 .4 1.6Z');
+    x.appendChild(xp); sup.appendChild(x);
+    sup.addEventListener('click', () => demanderSuppression(m.id));
+    n.appendChild(sup);
+    n.addEventListener('touchstart', () => {
+      document.querySelectorAll('.touched').forEach((e) => e.classList.remove('touched'));
+      n.classList.add('touched');
+    }, { passive: true });
+  } else if (m.lu) {
+    n.dataset.lu = '1';
+  }
+
+  el.messages.appendChild(n);
+  S.noeuds.set(m.id, n);
+  majVide();
+}
+
+function marqueJour(ts) {
+  const d = new Date(ts), cle = d.toDateString();
+  if (cle === S.dernierJour) return;
+  S.dernierJour = cle;
+  const m = document.createElement('div'); m.className = 'daymark';
+  const auj = new Date(), hier = new Date(Date.now() - 86400000);
+  m.textContent = cle === auj.toDateString() ? "Aujourd'hui"
+    : cle === hier.toDateString() ? 'Hier'
+    : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  el.messages.appendChild(m);
+  S.dernierAuteur = null;
+}
+
+function majEtat(n, etat) {
+  const c = n.querySelector('.ticks'); if (!c) return;
+  c.querySelector('.tick2').style.display = etat === 'envoye' ? 'none' : '';
+  c.classList.toggle('read', etat === 'lu');
+  n.querySelector('.meta').title = { envoye: 'envoyé', recu: 'reçu', lu: 'lu' }[etat];
+}
+
+function majVide() { el.empty.hidden = el.messages.querySelector('.msg') !== null; }
+
+function defilerEnBas(force = false) {
+  const b = el.messages;
+  if (force || b.scrollHeight - b.scrollTop - b.clientHeight < 220) {
+    b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
+  }
+}
+
+function majPresence(enLigne, vu) {
+  S.pairEnLigne = enLigne;
+  el.dot.classList.toggle('on', enLigne);
+  if (S.pairEcrit) return;
+  el.presence.textContent = enLigne ? 'en ligne' : texteVu(vu);
+}
+
+function texteVu(ts) {
+  if (!ts) return 'hors ligne';
+  const d = new Date(ts);
+  return d.toDateString() === new Date().toDateString()
+    ? `vu à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+    : `vu le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
+}
+
+function afficherFrappe(actif) {
+  S.pairEcrit = actif;
+  el.typing.hidden = !actif;
+  el.typingText.textContent = `${S.pair || ''} écrit…`.trim();
+  el.presence.textContent = actif ? 'écrit…' : (S.pairEnLigne ? 'en ligne' : 'hors ligne');
+  if (actif) defilerEnBas();
+}
+
+function bandeau(texte) { el.banner.hidden = !texte; if (texte) el.banner.textContent = texte; }
+
+/* ----------------------------------------------------------------------
+   6. Menu, suppression, déconnexion
+   ---------------------------------------------------------------------- */
+el.menuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const ouvrir = el.menu.hidden;
+  el.menu.hidden = !ouvrir;
+  el.menuBtn.setAttribute('aria-expanded', String(ouvrir));
+});
+document.addEventListener('click', () => {
+  el.menu.hidden = true;
+  el.menuBtn.setAttribute('aria-expanded', 'false');
+  document.querySelectorAll('.touched').forEach((n) => n.classList.remove('touched'));
+});
+
+let resoudre = null;
+function demander(titre, texte, libelle = 'Supprimer') {
+  el.confirmTitle.textContent = titre; el.confirmText.textContent = texte;
+  el.confirmYes.textContent = libelle; el.confirm.hidden = false; el.confirmYes.focus();
+  return new Promise((r) => (resoudre = r));
+}
+function fermer(v) { el.confirm.hidden = true; if (resoudre) resoudre(v); resoudre = null; }
+el.confirmYes.addEventListener('click', () => fermer(true));
+el.confirmNo.addEventListener('click', () => fermer(false));
+el.confirm.addEventListener('click', (e) => { if (e.target === el.confirm) fermer(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.confirm.hidden) fermer(false); });
+
+async function demanderSuppression(id) {
+  if (await demander('Supprimer ce message', 'Il disparaîtra aussi de l’écran de votre interlocuteur.')) {
+    remove(ref(db, `${RACINE}/messages/${id}`)).catch(() => bandeau('Suppression impossible.'));
+  }
+}
+
+el.clearBtn.addEventListener('click', async () => {
+  el.menu.hidden = true;
+  const ok = await demander('Supprimer la conversation',
+    'Tous les messages seront effacés des deux côtés. Cette action est définitive.', 'Tout supprimer');
+  if (ok) remove(refMessages()).catch(() => bandeau('Suppression impossible.'));
+});
+
+el.logoutBtn.addEventListener('click', async () => {
+  el.menu.hidden = true;
+  await set(ref(db, `${RACINE}/presence/${S.moi}`), { enLigne: false, vu: serverTimestamp() }).catch(() => {});
+  location.reload();
+});
+
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => defilerEnBas(true));
+
+/* Service worker : installation sur l'écran d'accueil et démarrage hors ligne. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>

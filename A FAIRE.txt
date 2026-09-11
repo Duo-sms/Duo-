@@ -1,0 +1,136 @@
+DUO - MESSAGERIE PRIVEE A DEUX
+==============================
+
+Projet Firebase dedie, independant d'Art de Vivre et de PULSE.
+5 etapes, environ 10 minutes.
+
+
+ETAPE 1 : CREER LE PROJET
+-------------------------
+https://console.firebase.google.com/
+
+  > Creer un projet  (ou "Ajouter un projet")
+  > Nom : Duo
+  > Google Analytics : DESACTIVER (inutile ici)
+  > Creer
+
+Firebase ajoute un suffixe au nom : le projet s'appellera
+par exemple duo-4f2a1. C'est normal.
+
+
+ETAPE 2 : LA BASE DE DONNEES
+----------------------------
+Menu de gauche > Compilation (Build) > Realtime Database
+  > Creer une base de donnees
+  > Emplacement : Belgium (europe-west1)
+  > Demarrer en MODE VERROUILLE
+  > Activer
+
+ATTENTION : prenez bien "Realtime Database",
+PAS "Cloud Firestore". Ce sont deux produits differents.
+
+
+ETAPE 3 : LA CONNEXION ANONYME
+------------------------------
+Menu de gauche > Authentication > Commencer
+  > onglet Sign-in method (Mode de connexion)
+  > Anonyme > Activer > Enregistrer
+
+Un seul bouton. Aucun compte a creer.
+
+
+ETAPE 4 : LES REGLES
+--------------------
+Realtime Database > onglet Regles
+Collez le contenu du fichier "REGLES FIREBASE.txt"
+en remplacant tout ce qui s'y trouve.
+  > Publier
+
+
+ETAPE 5 : LA CONFIGURATION  --  DEJA FAITE
+-----------------------------------------
+Le fichier config.js est deja rempli avec le projet
+duo-d7a06. Rien a modifier.
+
+
+GITHUB
+------
+Nouveau depot PUBLIC nomme : Duo
+(Pages ne fonctionne pas sur un depot prive en compte gratuit.
+ Aucun secret dans ces fichiers : pas de mot de passe,
+ pas de cle de conversation, pas de messages.)
+
+Deposez les 7 fichiers a la racine :
+
+   index.html
+   config.js
+   sw.js
+   manifest.json
+   icon-192.png
+   icon-512.png
+   icon-512-maskable.png
+
+Puis : Settings > Pages
+       Source : Deploy from a branch
+       Branche : main   Dossier : / (root)
+       Save
+
+Deux minutes plus tard, votre adresse :
+
+   https://zephyrprevention.github.io/Duo/
+
+
+UTILISATION
+-----------
+Ouvrez l'adresse sur les DEUX telephones.
+Menu du navigateur > Ajouter a l'ecran d'accueil.
+
+Chacun saisit :
+  - son prenom ou pseudo (different de l'autre)
+  - LA MEME CLE DE CONVERSATION des deux cotes
+
+La cle est le mot secret convenu a deux. Elle chiffre les
+messages sur l'appareil : personne d'autre ne peut les lire,
+pas meme Google. Si les deux cles different, vous verrez
+"Message illisible" : il faut se remettre d'accord.
+
+Les deux premiers pseudos inscrits occupent les deux places.
+Un troisieme est refuse.
+
+
+CE QUE FAIT L'APPLICATION
+-------------------------
+- messages en temps reel, partout, en 4G comme en Wi-Fi
+- heure de chaque message, separateurs Aujourd'hui / Hier
+- 1 coche = envoye, 2 coches = recu, 2 coches claires = lu
+- "en ligne" et "ecrit..." en haut de l'ecran
+- supprimer un message, ou toute la conversation
+- historique conserve
+- s'installe comme une application
+
+
+EN CAS DE MODIFICATION
+----------------------
+Si vous modifiez index.html, changez SW_VERSION dans sw.js
+(duo-v1 devient duo-v2), sinon les telephones gardent
+l'ancienne version en memoire.
+
+
+SI CA NE MARCHE PAS
+-------------------
+"La configuration Firebase n'a pas ete renseignee"
+   -> etape 5 : les COLLEZ_ICI sont encore dans config.js
+
+"Connexion impossible"
+   -> etape 3 (connexion anonyme) ou etape 4 (regles) oubliee
+   -> ou databaseURL absent du bloc copie : il n'apparait
+      que si la Realtime Database a bien ete creee AVANT
+      l'application Web. Recreez la base, puis recopiez
+      la configuration.
+
+"Les deux places sont deja prises"
+   -> dans la base, supprimez le noeud duo/membres
+      puis reconnectez-vous
+
+"Message illisible"
+   -> les deux cles de conversation different

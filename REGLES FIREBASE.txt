@@ -1,0 +1,27 @@
+REGLES A COLLER DANS FIREBASE
+Console Firebase > Realtime Database > onglet Regles
+
+Le projet Duo etant dedie a cette messagerie, remplacez
+TOUT le contenu de la zone par ceci, puis cliquez sur PUBLIER :
+
+
+{
+  "rules": {
+    "duo": {
+      ".read":  "auth != null",
+      ".write": "auth != null",
+      "messages": {
+        "$id": {
+          ".validate": "newData.hasChildren(['de','iv','ct','le'])"
+        }
+      }
+    }
+  }
+}
+
+
+Ce que cela veut dire :
+- seule l'application connectee a la base peut lire et ecrire
+- rien d'autre que le noeud "duo" n'est accessible
+- le contenu des messages est de toute facon chiffre :
+  meme en cas d'acces a la base, il est illisible
