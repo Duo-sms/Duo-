@@ -166,6 +166,7 @@ h1{font-size:44px;font-weight:600;letter-spacing:-.03em;margin:0 0 8px}
         </svg>
       </button>
       <div id="menu" class="menu" hidden>
+        <button id="btn-code" type="button">Changer le code</button>
         <button id="btn-clear" class="danger" type="button">Supprimer la conversation</button>
         <button id="btn-logout" type="button">Se déconnecter</button>
       </div>
@@ -230,6 +231,7 @@ const el = {
   messages: $('messages'), empty: $('empty'), typing: $('typing'), typingText: $('typing-text'),
   banner: $('banner'), composer: $('composer'), input: $('input'),
   menuBtn: $('btn-menu'), menu: $('menu'), clearBtn: $('btn-clear'), logoutBtn: $('btn-logout'),
+  codeBtn: $('btn-code'),
   confirm: $('confirm'), confirmTitle: $('confirm-title'), confirmText: $('confirm-text'),
   confirmYes: $('confirm-yes'), confirmNo: $('confirm-no')
 };
@@ -254,6 +256,40 @@ async function deriverCle(phrase) {
     { name: 'PBKDF2', salt: sel, iterations: 310000, hash: 'SHA-256' },
     mat, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
 }
+async function chiffrerAvec(cle, texte) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cle, ENC.encode(texte));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function dechiffrerAvec(cle, iv, ct) {
+  try {
+    const clair = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deb64(iv) }, cle, deb64(ct));
+    return { ok: true, texte: DEC.decode(clair) };
+  } catch {
+    return { ok: false, texte: null };
+  }
+}
+
+/* Temoin ecrit dans la base a la definition du code.
+   Il permet de verifier un code AVANT d'entrer, sans jamais stocker le code. */
+const TEMOIN = 'duo-code-ok';
+
+async function verifierOuDefinirCode(cle) {
+  const refTemoin = ref(db, `${RACINE}/code`);
+  const snap = await get(refTemoin);
+
+  if (snap.exists()) {
+    const t = snap.val();
+    const essai = await dechiffrerAvec(cle, t.iv, t.ct);
+    return essai.ok && essai.texte === TEMOIN;   // false = mauvais code
+  }
+
+  // Personne n'a encore defini de code : celui saisi devient le code de reference.
+  const { iv, ct } = await chiffrerAvec(cle, TEMOIN);
+  await set(refTemoin, { iv, ct, le: serverTimestamp() });
+  return true;
+}
+
 async function chiffrer(texte) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, S.cle, ENC.encode(texte));
@@ -292,13 +328,22 @@ el.form.addEventListener('submit', async (e) => {
   try {
     await signInAnonymously(auth);
 
+    const cle = await deriverCle(phrase);
+    if (!(await verifierOuDefinirCode(cle))) {
+      const e = new Error('Code incorrect. Saisissez le code que vous a communiqué votre interlocuteur.');
+      e.visible = true;
+      throw e;
+    }
+
     const instantane = await get(ref(db, `${RACINE}/membres`));
     const membres = instantane.val() || {};
     const noms = Object.keys(membres);
 
     if (!noms.includes(pseudo)) {
       if (noms.length >= 2) {
-        throw new Error(`Les deux places sont déjà prises par ${noms.join(' et ')}.`);
+        const e = new Error(`Les deux places sont déjà prises par ${noms.join(' et ')}.`);
+        e.visible = true;
+        throw e;
       }
       await set(ref(db, `${RACINE}/membres/${pseudo}`), true);
       noms.push(pseudo);
@@ -306,14 +351,13 @@ el.form.addEventListener('submit', async (e) => {
 
     S.moi = pseudo;
     S.pair = noms.find((n) => n !== pseudo) || null;
-    S.cle = await deriverCle(phrase);
+    S.cle = cle;
     localStorage.setItem('duo.pseudo', pseudo);
     el.passphrase.value = '';
     ouvrirConversation();
   } catch (err) {
-    erreur(err?.message?.startsWith('Les deux places')
-      ? err.message
-      : 'Connexion impossible. Vérifiez le réseau et les règles Firebase.');
+    erreur(err?.visible ? err.message
+      : 'Connexion impossible. Vérifiez votre réseau.');
   } finally {
     el.submit.disabled = false; el.submit.textContent = 'Ouvrir la ligne';
   }
@@ -608,6 +652,27 @@ el.clearBtn.addEventListener('click', async () => {
   const ok = await demander('Supprimer la conversation',
     'Tous les messages seront effacés des deux côtés. Cette action est définitive.', 'Tout supprimer');
   if (ok) remove(refMessages()).catch(() => bandeau('Suppression impossible.'));
+});
+
+/* Changer le code : efface le temoin et les messages.
+   Les anciens messages sont chiffres avec l'ancien code, ils seraient
+   de toute facon illisibles ensuite. Le prochain code saisi fait reference. */
+el.codeBtn.addEventListener('click', async () => {
+  el.menu.hidden = true;
+  const ok = await demander('Changer le code',
+    'Le nouveau code sera celui que vous saisirez à la prochaine connexion. ' +
+    'La conversation actuelle sera effacée : elle est chiffrée avec l’ancien code et ' +
+    'resterait illisible. Communiquez ensuite le nouveau code à votre interlocuteur.',
+    'Changer le code');
+  if (!ok) return;
+  try {
+    await remove(ref(db, `${RACINE}/messages`));
+    await remove(ref(db, `${RACINE}/code`));
+    try { sessionStorage.clear(); } catch {}
+    location.reload();
+  } catch {
+    bandeau('Changement impossible. Vérifiez votre connexion.');
+  }
 });
 
 el.logoutBtn.addEventListener('click', async () => {

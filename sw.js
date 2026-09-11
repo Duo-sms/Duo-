@@ -2,7 +2,7 @@
    IMPORTANT : incrémenter SW_VERSION à chaque modification de index.html,
    sinon les appareils gardent l'ancienne version en cache. */
 
-const SW_VERSION = 'duo-v1';
+const SW_VERSION = 'duo-v2';
 
 const COQUILLE = [
   './',
