@@ -234,6 +234,13 @@ code {
 .j-txt { margin: 0; flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
 .j-note { background: var(--accent-soft); border-bottom: none; border-radius: 8px; padding: 8px 10px; }
 .j-note.moi { background: var(--field); }
+.j-side { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.j-del {
+  border: 1px solid transparent; background: transparent; color: var(--muted);
+  padding: 2px 8px; font-size: 18px; font-weight: 500; line-height: 1.2; border-radius: 4px;
+}
+.j-del:hover { color: var(--danger); }
+.j-del.arme { color: var(--danger); border-color: var(--danger); font-size: 13px; font-weight: 600; }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -437,7 +444,10 @@ code {
     </section>
 
     <section class="card block" id="sec-journal">
-      <div class="sec-head"><h2>Journal</h2></div>
+      <div class="sec-head">
+        <h2>Journal</h2>
+        <button type="button" class="danger-ghost" id="btn-vider-journal">Vider le journal</button>
+      </div>
       <form class="j-form" id="j-form">
         <input id="j-texte" type="text" maxlength="500" placeholder="Écrire une note (pièce commandée, rendez-vous…)" aria-label="Note pour le journal">
         <button type="submit" class="primary">Envoyer</button>
@@ -1190,6 +1200,7 @@ function rendrePersonnes() {
   if (!autres.length) { p.append(personne('En attente de la deuxième personne : touchez « Partager »', false)); return; }
   autres.forEach((m) => p.append(personne(`${m.nom} : ${m.enLigne ? 'en ligne' : `vu ${relatif(m.vu)}`}`, !!m.enLigne)));
 }
+let jArme = null, minuteurJ;
 function rendreJournal() {
   const ul = $('journal'); ul.textContent = '';
   S.journal.forEach((j) => {
@@ -1201,11 +1212,54 @@ function rendreJournal() {
     const t = document.createElement('time');
     if (j.le) t.dateTime = new Date(j.le).toISOString();
     t.textContent = horodatage(j.le);
-    li.append(p, t);
+    const arme = jArme === j.id;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = `j-del${arme ? ' arme' : ''}`;
+    del.dataset.id = j.id;
+    del.textContent = arme ? 'Supprimer' : '×';
+    del.setAttribute('aria-label', arme ? 'Confirmer la suppression de cette ligne' : 'Supprimer cette ligne du journal');
+    const cote = document.createElement('span'); cote.className = 'j-side';
+    cote.append(t, del);
+    li.append(p, cote);
     ul.append(li);
   });
   $('empty-journal').hidden = S.journal.length > 0;
+  $('btn-vider-journal').disabled = !S.journal.length;
 }
+$('journal').addEventListener('click', (e) => {
+  const b = e.target.closest('.j-del'); if (!b || !S.P) return;
+  const id = b.dataset.id;
+  clearTimeout(minuteurJ);
+  if (jArme !== id) {
+    jArme = id;
+    minuteurJ = setTimeout(() => { jArme = null; rendreJournal(); }, 4000);
+    rendreJournal();
+    $('journal').querySelector(`.j-del[data-id="${id}"]`)?.focus();
+    return;
+  }
+  jArme = null;
+  S.journal = S.journal.filter((x) => x.id !== id);
+  rendreJournal();
+  remove(ref(db, `${base()}/journal/${id}`)).catch((err) => bandeau(messageErreur(err), 'err'));
+});
+const btnVider = $('btn-vider-journal');
+let minuteurVider;
+function desarmerVider() { btnVider.dataset.arme = ''; btnVider.textContent = 'Vider le journal'; }
+btnVider.addEventListener('click', () => {
+  if (!S.P) return;
+  clearTimeout(minuteurVider);
+  if (btnVider.dataset.arme !== '1') {
+    btnVider.dataset.arme = '1';
+    btnVider.textContent = 'Confirmer : tout effacer';
+    minuteurVider = setTimeout(desarmerVider, 4500);
+    return;
+  }
+  desarmerVider();
+  remove(ref(db, `${base()}/journal`)).catch((err) => bandeau(messageErreur(err), 'err'));
+  journal('a vidé le journal');
+  toast('Journal vidé');
+});
 $('j-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const t = $('j-texte').value.trim();

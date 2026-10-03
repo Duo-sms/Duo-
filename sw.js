@@ -2,7 +2,7 @@
    IMPORTANT : incrémenter SW_VERSION à chaque modification de index.html,
    sinon les téléphones gardent l'ancienne version en cache. */
 
-const SW_VERSION = 'restau-v1';
+const SW_VERSION = 'restau-v2';
 
 const COQUILLE = [
   './',
