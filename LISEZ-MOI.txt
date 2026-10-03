@@ -1,0 +1,112 @@
+SUIVI DE RESTAURATION - PARTAGE A DEUX
+======================================
+
+Construit sur le projet Duo : meme projet Firebase (duo-d7a06),
+meme Realtime Database, meme connexion anonyme, meme hebergement
+GitHub Pages. Les donnees vont dans un noeud "restau" separe.
+3 etapes, environ 5 minutes.
+
+
+ETAPE 1 : LES REGLES FIREBASE
+-----------------------------
+https://console.firebase.google.com/ > projet duo-d7a06
+  > Realtime Database > onglet Regles
+Collez le contenu du fichier "REGLES FIREBASE.txt"
+en remplacant tout ce qui s'y trouve.
+  > Publier
+
+La connexion anonyme est deja active depuis Duo : rien a faire.
+
+
+ETAPE 2 : GITHUB
+----------------
+Depot Duo-sms/Duo-  >  Add file  >  Upload files
+Deposez ces 8 fichiers (ils remplacent ceux de Duo) :
+
+   index.html
+   config.js
+   sw.js
+   manifest.json
+   icon-192.png
+   icon-512.png
+   icon-512-maskable.png
+   REGLES FIREBASE.txt   (facultatif, pour memoire)
+
+  > Commit changes
+
+Deux minutes plus tard, l'application est en ligne a l'adresse :
+
+   https://duo-sms.github.io/Duo-/
+
+Adresse plus parlante (facultatif) :
+  Settings > General > Repository name : restauration > Rename
+  L'adresse devient https://duo-sms.github.io/restauration/
+
+Pour garder Duo a cote : creez un dossier "restauration" dans le
+depot et deposez-y les fichiers. Adresse :
+https://duo-sms.github.io/Duo-/restauration/
+
+
+ETAPE 3 : UTILISATION
+---------------------
+Vous :
+  1. Ouvrez l'adresse sur votre telephone.
+  2. Saisissez votre prenom.
+  3. "Creer le suivi" : les 20 pieces du garage sont deja remplies
+     (HTVA et TVAC).
+  4. Touchez "Partager" et envoyez le lien au garagiste
+     (SMS, WhatsApp, mail...).
+
+Le garagiste :
+  1. Ouvre le lien recu.
+  2. Saisit son prenom, puis "Entrer dans le suivi".
+
+Ensuite, tout ce que l'un saisit apparait chez l'autre en direct.
+Menu du navigateur > Ajouter a l'ecran d'accueil pour l'installer
+comme une application.
+
+Sur iPhone : l'application installee sur l'ecran d'accueil ne
+partage pas la memoire de Safari. A sa premiere ouverture, saisir
+le prenom et coller le lien dans "Rejoindre un suivi"
+(le lien se copie depuis le menu ... > Copier le lien).
+Sur Android, rien a refaire.
+
+
+CE QUE FAIT L'APPLICATION
+-------------------------
+- Pieces : prix HTVA et TVAC (l'un se calcule depuis l'autre),
+  ajout et suppression de lignes, note par piece, TVA reglable
+- Main-d'oeuvre : date, travail, heures, taux horaire par ligne,
+  SANS TVA ; taux par defaut reglable
+- Acomptes : date, mode de paiement, montant, note
+- Solde calcule automatiquement :
+     pieces TVAC + main-d'oeuvre - acomptes = solde a payer
+- Journal : qui a ajoute ou modifie quoi, et notes libres
+- Presence : "en ligne" ou "vu il y a..." pour l'autre personne
+- Recapitulatif a envoyer par message en un geste
+- Fonctionne aussi sans reseau : les saisies partent au retour
+  de la connexion
+
+
+EN CAS DE MODIFICATION
+----------------------
+Si vous modifiez index.html, changez SW_VERSION dans sw.js
+(restau-v1 devient restau-v2), sinon les telephones gardent
+l'ancienne version en memoire.
+
+
+SI CA NE MARCHE PAS
+-------------------
+"La base Firebase refuse l'acces"
+   -> etape 1 : les regles n'ont pas ete publiees
+
+"La connexion anonyme est desactivee"
+   -> Firebase > Authentication > Mode de connexion > Anonyme > Activer
+
+"Aucun suivi ne correspond a ce code"
+   -> le lien a ete coupe en le copiant : renvoyez-le en entier
+      (menu ... > Copier le lien)
+
+Changer de suivi sur un telephone
+   -> menu ... > Quitter ce suivi sur cet appareil
+      (les donnees restent en ligne, le lien permet de revenir)

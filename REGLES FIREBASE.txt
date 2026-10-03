@@ -1,0 +1,36 @@
+REGLES A COLLER DANS FIREBASE
+Console Firebase > projet duo-d7a06 > Realtime Database > onglet Regles
+
+Remplacez TOUT le contenu de la zone par ceci, puis cliquez sur PUBLIER :
+
+
+{
+  "rules": {
+    "duo": {
+      ".read":  "auth != null",
+      ".write": "auth != null",
+      "messages": {
+        "$id": {
+          ".validate": "newData.hasChildren(['de','iv','ct','le'])"
+        }
+      }
+    },
+    "restau": {
+      "$suivi": {
+        ".read":  "auth != null && $suivi.length >= 20",
+        ".write": "auth != null && $suivi.length >= 20"
+      }
+    }
+  }
+}
+
+
+Ce que cela veut dire :
+- le bloc "duo" est celui de l'ancienne messagerie, conserve tel quel
+  (vous pourrez le retirer plus tard si vous videz le noeud duo)
+- le bloc "restau" ouvre le suivi de restauration :
+  chaque suivi est range sous restau/<code>, le code de 24 caracteres
+  est dans le lien de partage
+- personne ne peut lister les suivis : il faut connaitre le code
+  (rien n'est lisible au niveau "restau" lui-meme)
+- seule l'application, connectee a la base, peut lire et ecrire

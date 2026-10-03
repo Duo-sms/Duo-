@@ -1,0 +1,1285 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2a46b8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171b24" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Suivi de restauration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Carnet d'atelier : fiche véhicule quadrillée, chiffres clés, puis pièces / main-d'œuvre / acomptes / solde / journal.
+   Tableau sur ordinateur, cartes empilées sur téléphone. */
+:root {
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --field: #eef1f6;
+  --ink: #1a2030;
+  --muted: #5a6478;
+  --line: #dce1ea;
+  --grid: rgba(42, 70, 184, 0.07);
+  --accent: #2a46b8;
+  --accent-ink: #ffffff;
+  --accent-soft: #e7ebfb;
+  --warn: #8f5200;
+  --warn-soft: #fcefd8;
+  --ok: #1d6b3f;
+  --ok-soft: #e2f3e8;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1218; --surface: #171b24; --field: #1f2430; --ink: #e6e9f1; --muted: #9ca5b7; --line: #2a3141;
+    --grid: rgba(142, 162, 255, 0.06); --accent: #8ea2ff; --accent-ink: #0f1218; --accent-soft: #1f2749;
+    --warn: #f0b45a; --warn-soft: #382a14; --ok: #6fd39a; --ok-soft: #16301f; --danger: #ff8a7a; --danger-soft: #3a1714;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 15px/1.45 var(--font-body);
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+[hidden] { display: none !important; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 72px; }
+main { display: grid; gap: 16px; }
+
+h1, h2 { font-family: var(--font-display); font-weight: 700; margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 { font-size: clamp(28px, 7vw, 40px); }
+h2 { font-size: 22px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.label, .fl, .thead span {
+  font-family: var(--font-display); font-weight: 600; font-size: 12.5px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.eyebrow { font-family: var(--font-display); font-weight: 600; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.sub, .help { color: var(--muted); margin: 0; }
+.help { font-size: 13px; }
+
+/* Surfaces */
+.sheet {
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 14px 14px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 6px;
+}
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.form-card { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.acc-choix { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.field { display: grid; gap: 4px; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14.5px; }
+.check input { width: auto; margin-top: 3px; accent-color: var(--accent); }
+.erreur { background: var(--danger-soft); color: var(--danger); padding: 10px 12px; border-radius: 6px; margin: 0; }
+
+/* Champs et boutons */
+input, select {
+  font: inherit; color: var(--ink); background: var(--field);
+  border: 1px solid transparent; border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0;
+}
+input:hover, select:hover { border-color: var(--line); }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+input.num { text-align: right; font-variant-numeric: tabular-nums; }
+input.num::placeholder { color: var(--muted); }
+input.w-sm { width: 4.8em; }
+input[type="date"] { min-height: 36px; }
+button {
+  font: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.ghost { background: transparent; }
+button.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+button.danger-ghost { color: var(--danger); background: transparent; border-color: transparent; padding-inline: 0; }
+button:disabled { opacity: .55; cursor: default; }
+
+/* En-tête de l'application */
+.top-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+input.vehicle {
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(24px, 6vw, 36px); line-height: 1.15;
+  background: transparent; padding: 0 4px; margin-left: -5px;
+}
+.top-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.icon-btn { padding: 8px 12px; font-size: 18px; line-height: 1; }
+.people { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; font-size: 13.5px; color: var(--muted); }
+.pers { display: inline-flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: inline-block; flex: 0 0 auto; }
+.dot.on { background: var(--ok); }
+.menu { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 12px; display: grid; gap: 14px; }
+.menu-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.menu-row .label { flex-basis: 100%; }
+.menu-row input { flex: 1 1 160px; width: auto; }
+code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 14px;
+  background: var(--field); padding: 6px 8px; border-radius: 4px; overflow-wrap: anywhere;
+}
+.bandeau { margin: 0; padding: 10px 12px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 14px; }
+.bandeau.err { background: var(--danger-soft); color: var(--danger); }
+
+/* Chiffres clés */
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.kpi strong { font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 5vw, 30px); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.kpi .sub { font-size: 13px; font-variant-numeric: tabular-nums; }
+.kpi.main { background: var(--accent-soft); border-color: transparent; }
+.kpi.main strong { color: var(--accent); }
+.kpi.main.ok { background: var(--ok-soft); } .kpi.main.ok strong { color: var(--ok); }
+.kpi.main.warn { background: var(--warn-soft); } .kpi.main.warn strong { color: var(--warn); }
+@media (max-width: 600px) { .kpis { grid-template-columns: 1fr 1fr; } .kpi.main { grid-column: 1 / -1; order: -1; } }
+
+/* Navigation rapide */
+.jump {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none;
+  background: var(--bg); margin-inline: -16px; padding: 6px 16px;
+}
+.jump::-webkit-scrollbar { display: none; }
+.jump a {
+  flex: 0 0 auto; text-decoration: none; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 14px; font-weight: 500;
+}
+.jump .j-solde { margin-left: auto; flex: 0 0 auto; padding-left: 10px; font-weight: 600; color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Sections et lignes */
+.block, .recap { scroll-margin-top: 58px; }
+.block { overflow: hidden; }
+.sec-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 14px 14px 10px; }
+.inline-field { display: flex; align-items: center; gap: 6px; }
+.chip {
+  font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 4px; background: var(--ok-soft); color: var(--ok);
+}
+.thead, .row { display: grid; gap: 8px; padding: 9px 14px; align-items: start; }
+.thead { background: var(--bg); border-block: 1px solid var(--line); }
+.thead .r { text-align: right; }
+.row { border-bottom: 1px solid var(--line); }
+.row > .grp { display: contents; }
+.row .cell { grid-row: 1; min-width: 0; }
+.fl { display: none; }
+.confirm { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--danger); font-size: 14px; }
+.del { width: 34px; height: 34px; padding: 0; border: none; background: transparent; color: var(--muted); font-size: 22px; line-height: 1; }
+.del:hover { color: var(--danger); }
+.c-lib { display: grid; }
+.t-main { font-weight: 500; }
+.t-note { font-size: 13.5px; color: var(--muted); background: transparent; padding-block: 3px; margin-top: 2px; }
+.t-note:focus { background: var(--field); color: var(--ink); }
+.mo-montant { text-align: right; padding: 7px 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mo-montant.vide { color: var(--muted); font-weight: 400; }
+
+.k-pieces { grid-template-columns: minmax(0, 1fr) 116px 116px 34px; }
+.k-mo { grid-template-columns: 148px minmax(0, 1fr) 78px 78px 108px 34px; }
+.k-acomptes { grid-template-columns: 148px 140px minmax(0, 1fr) 124px 34px; }
+.k-pieces .c-lib { grid-column: 1; } .k-pieces .c-ht { grid-column: 2; } .k-pieces .c-ttc { grid-column: 3; } .k-pieces .c-del { grid-column: 4; }
+.k-mo .c-date { grid-column: 1; } .k-mo .c-trav { grid-column: 2; } .k-mo .c-h { grid-column: 3; }
+.k-mo .c-taux { grid-column: 4; } .k-mo .c-mt { grid-column: 5; } .k-mo .c-del { grid-column: 6; }
+.k-acomptes .c-date { grid-column: 1; } .k-acomptes .c-mode { grid-column: 2; } .k-acomptes .c-note { grid-column: 3; }
+.k-acomptes .c-mt { grid-column: 4; } .k-acomptes .c-del { grid-column: 5; }
+
+.tfoot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 20px;
+  padding: 12px 14px; background: var(--bg); border-top: 1px solid var(--line); font-variant-numeric: tabular-nums;
+}
+.tf-label { font-weight: 600; }
+.tf-label small { font-weight: 400; color: var(--muted); font-size: 13px; }
+.tf-vals { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.tf-vals > span { display: inline-flex; gap: 8px; align-items: baseline; }
+.tf-vals .label { font-size: 11.5px; }
+.note-line { margin: 0; padding: 0 14px 12px; font-size: 13px; color: var(--muted); background: var(--bg); }
+.sec-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px 14px; }
+.empty { margin: 0; padding: 18px 14px; color: var(--muted); text-align: center; }
+
+@media (max-width: 720px) {
+  .thead { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px 14px; }
+  .row > .grp { display: grid; gap: 8px; }
+  .row .cell, .row .confirm { grid-column: auto; grid-row: auto; }
+  .g-head { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .k-pieces .g-nums { grid-template-columns: 1fr 1fr; }
+  .k-mo .g-nums { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1fr); }
+  .k-mo .c-mt { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; }
+  .k-mo .c-mt .mo-montant { padding: 0; }
+  .k-acomptes .g-nums { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.2fr) minmax(0, 1fr); }
+  .fl { display: block; font-size: 11px; margin-bottom: 2px; }
+  input[type="date"] { font-size: 14px; padding-inline: 6px; }
+}
+
+/* Solde */
+.recap { padding: 16px; display: grid; gap: 12px; }
+.recap dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-variant-numeric: tabular-nums; }
+.recap dt { color: var(--muted); }
+.recap dd { margin: 0; text-align: right; font-weight: 600; }
+.recap .strong { color: var(--ink); font-weight: 600; }
+.recap .sep { grid-column: 1 / -1; border-top: 1px solid var(--line); }
+.recap dd.big { font-family: var(--font-display); font-size: 30px; font-weight: 700; color: var(--accent); line-height: 1; }
+.recap .sec-actions { padding: 0; }
+
+/* Journal */
+.j-form { display: flex; gap: 8px; padding: 0 14px 12px; }
+.j-form input { flex: 1 1 auto; width: auto; }
+.journal { list-style: none; margin: 0; padding: 0 14px 14px; display: grid; gap: 6px; max-height: 560px; overflow-y: auto; }
+.j { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.j time { color: var(--muted); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.j-txt { margin: 0; flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+.j-note { background: var(--accent-soft); border-bottom: none; border-radius: 8px; padding: 8px 10px; }
+.j-note.moi { background: var(--field); }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: max-content; max-width: min(92vw, 520px); margin: 0; z-index: 20;
+  background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 8px; font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ Accueil ============ -->
+  <main id="screen-accueil" hidden>
+    <header class="sheet">
+      <span class="eyebrow">Carnet de restauration</span>
+      <h1>Suivi de restauration</h1>
+      <p class="sub">Pièces, main-d’œuvre, acomptes et solde, partagés en direct entre deux personnes.</p>
+    </header>
+
+    <div class="card form-card">
+      <div class="field">
+        <label class="label" for="acc-nom">Votre prénom</label>
+        <input id="acc-nom" type="text" maxlength="20" autocomplete="given-name" placeholder="Ex. John, Garage Martin">
+        <span class="help">Il apparaît dans le journal pour savoir qui a saisi quoi.</span>
+      </div>
+    </div>
+
+    <section class="card form-card" id="acc-lien" hidden>
+      <h2>Rejoindre le suivi partagé</h2>
+      <p class="sub">Vous avez reçu un lien de suivi. Indiquez votre prénom puis entrez.</p>
+      <div><button type="button" class="primary" id="btn-rejoindre-lien">Entrer dans le suivi</button></div>
+    </section>
+
+    <div class="acc-choix" id="acc-choix">
+      <section class="card form-card">
+        <h2>Créer un suivi</h2>
+        <div class="field">
+          <label class="label" for="acc-vehicule">Véhicule</label>
+          <input id="acc-vehicule" type="text" maxlength="120" value="Mercedes SLK 230K (R170)">
+        </div>
+        <label class="check"><input id="acc-prefill" type="checkbox" checked> Reprendre la liste de pièces du garage (20 lignes)</label>
+        <div><button type="button" class="primary" id="btn-creer">Créer le suivi</button></div>
+      </section>
+      <section class="card form-card">
+        <h2>Rejoindre un suivi</h2>
+        <div class="field">
+          <label class="label" for="acc-code">Lien ou code reçu</label>
+          <input id="acc-code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Collez le lien reçu par message">
+        </div>
+        <div><button type="button" id="btn-rejoindre">Rejoindre</button></div>
+      </section>
+    </div>
+
+    <p class="erreur" id="acc-erreur" role="alert" hidden></p>
+  </main>
+
+  <!-- ============ Application ============ -->
+  <main id="screen-app" hidden>
+    <header class="sheet">
+      <div class="top-row">
+        <span class="eyebrow">Carnet de restauration</span>
+        <div class="top-actions">
+          <button type="button" class="primary" id="btn-partager">Partager</button>
+          <button type="button" class="icon-btn" id="btn-menu" aria-expanded="false" aria-controls="menu" aria-label="Plus d’options">⋯</button>
+        </div>
+      </div>
+      <input id="vehicule" class="vehicle" type="text" maxlength="120" aria-label="Véhicule">
+      <p class="people" id="people"></p>
+      <div class="menu" id="menu" hidden>
+        <div class="menu-row">
+          <span class="label">Code du suivi</span>
+          <code id="menu-code">–</code>
+          <button type="button" id="btn-copier-lien">Copier le lien</button>
+        </div>
+        <div class="menu-row">
+          <label class="label" for="menu-nom">Votre prénom</label>
+          <input id="menu-nom" type="text" maxlength="20">
+          <button type="button" id="btn-nom">Modifier</button>
+        </div>
+        <div class="menu-row">
+          <button type="button" class="danger-ghost" id="btn-quitter">Quitter ce suivi sur cet appareil</button>
+          <span class="help">Les données restent en ligne : le lien permet de revenir.</span>
+        </div>
+      </div>
+    </header>
+
+    <p class="bandeau" id="bandeau" role="status" hidden></p>
+    <p class="bandeau" id="net" role="status" hidden>Hors ligne : vos saisies seront envoyées dès le retour du réseau.</p>
+
+    <section class="kpis" aria-label="Chiffres clés">
+      <div class="kpi">
+        <span class="label">Total à payer</span>
+        <strong id="k-total">–</strong>
+        <span class="sub" id="k-total-sub">–</span>
+      </div>
+      <div class="kpi">
+        <span class="label">Acomptes versés</span>
+        <strong id="k-verse">–</strong>
+        <span class="sub" id="k-verse-sub">–</span>
+      </div>
+      <div class="kpi main" id="k-solde-box">
+        <span class="label" id="k-solde-label">Solde à payer</span>
+        <strong id="k-solde">–</strong>
+        <span class="sub" id="k-solde-sub">–</span>
+      </div>
+    </section>
+
+    <nav class="jump" aria-label="Sections">
+      <a href="#sec-pieces">Pièces</a>
+      <a href="#sec-mo">Main-d’œuvre</a>
+      <a href="#sec-acomptes">Acomptes</a>
+      <a href="#sec-journal">Journal</a>
+      <span class="j-solde" id="j-solde"></span>
+    </nav>
+
+    <section class="card block" id="sec-pieces">
+      <div class="sec-head">
+        <h2>Pièces</h2>
+        <div class="inline-field">
+          <label class="label" for="tva">TVA</label>
+          <input id="tva" class="num w-sm" type="text" inputmode="decimal"><span>%</span>
+        </div>
+      </div>
+      <div class="thead k-pieces" aria-hidden="true">
+        <span>Désignation</span><span class="r">HTVA</span><span class="r">TVAC</span><span></span>
+      </div>
+      <div class="rows" id="rows-pieces"></div>
+      <p class="empty" id="empty-pieces">Chargement…</p>
+      <div class="tfoot">
+        <span class="tf-label">Total pièces <small id="tf-pieces-n"></small></span>
+        <span class="tf-vals">
+          <span><span class="label">HTVA</span><b id="tf-pieces-ht">–</b></span>
+          <span><span class="label">TVAC</span><b id="tf-pieces-ttc">–</b></span>
+        </span>
+      </div>
+      <p class="note-line" id="tf-pieces-tva"></p>
+      <div class="sec-actions">
+        <button type="button" data-add="pieces">Ajouter une pièce</button>
+      </div>
+    </section>
+
+    <section class="card block" id="sec-mo">
+      <div class="sec-head">
+        <h2>Main-d’œuvre <span class="chip">Sans TVA</span></h2>
+        <div class="inline-field">
+          <label class="label" for="taux">Taux par défaut</label>
+          <input id="taux" class="num w-sm" type="text" inputmode="decimal"><span>€/h</span>
+        </div>
+      </div>
+      <div class="thead k-mo" aria-hidden="true">
+        <span>Date</span><span>Travail effectué</span><span class="r">Heures</span><span class="r">€/h</span><span class="r">Montant</span><span></span>
+      </div>
+      <div class="rows" id="rows-mo"></div>
+      <p class="empty" id="empty-mo">Chargement…</p>
+      <div class="tfoot">
+        <span class="tf-label">Total main-d’œuvre</span>
+        <span class="tf-vals">
+          <span><span class="label">Heures</span><b id="tf-mo-h">–</b></span>
+          <span><span class="label">Montant</span><b id="tf-mo-montant">–</b></span>
+        </span>
+      </div>
+      <div class="sec-actions">
+        <button type="button" data-add="mo">Ajouter des heures</button>
+        <button type="button" class="ghost" id="btn-appliquer-taux">Appliquer le taux à toutes les lignes</button>
+      </div>
+    </section>
+
+    <section class="card block" id="sec-acomptes">
+      <div class="sec-head">
+        <h2>Acomptes versés</h2>
+      </div>
+      <div class="thead k-acomptes" aria-hidden="true">
+        <span>Date</span><span>Mode</span><span>Note</span><span class="r">Montant</span><span></span>
+      </div>
+      <div class="rows" id="rows-acomptes"></div>
+      <p class="empty" id="empty-acomptes">Chargement…</p>
+      <div class="tfoot">
+        <span class="tf-label">Total versé</span>
+        <span class="tf-vals"><span><b id="tf-ac-total">–</b></span></span>
+      </div>
+      <div class="sec-actions">
+        <button type="button" data-add="acomptes">Ajouter un acompte</button>
+      </div>
+    </section>
+
+    <section class="card recap" id="sec-solde">
+      <h2>Solde</h2>
+      <dl>
+        <dt>Pièces TVAC</dt><dd id="s-pieces">–</dd>
+        <dt>Main-d’œuvre (sans TVA)</dt><dd id="s-mo">–</dd>
+        <div class="sep"></div>
+        <dt class="strong">Total à payer</dt><dd id="s-total">–</dd>
+        <dt>Acomptes versés</dt><dd id="s-verse">–</dd>
+        <div class="sep"></div>
+        <dt class="strong" id="s-solde-label">Solde à payer</dt><dd class="big" id="s-solde">–</dd>
+      </dl>
+      <div class="sec-actions">
+        <button type="button" id="btn-recap">Envoyer le récapitulatif</button>
+      </div>
+    </section>
+
+    <section class="card block" id="sec-journal">
+      <div class="sec-head"><h2>Journal</h2></div>
+      <form class="j-form" id="j-form">
+        <input id="j-texte" type="text" maxlength="500" placeholder="Écrire une note (pièce commandée, rendez-vous…)" aria-label="Note pour le journal">
+        <button type="submit" class="primary">Envoyer</button>
+      </form>
+      <ul class="journal" id="journal"></ul>
+      <p class="empty" id="empty-journal">Aucune activité pour l’instant.</p>
+    </section>
+  </main>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+</div>
+
+<script type="module">
+/* =======================================================================
+   Suivi de restauration — partagé à deux, sans serveur à héberger.
+   Base : projet Firebase de Duo (duo-d7a06), Realtime Database,
+   connexion anonyme, nœud « restau » séparé du nœud « duo ».
+   Chaque suivi vit sous restau/<code> ; le code (24 caractères aléatoires)
+   circule dans le lien de partage et n'est listable par personne.
+   ======================================================================= */
+
+import { firebaseConfig } from './config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { getDatabase, ref, push, set, update, remove, get, onValue, onDisconnect,
+         serverTimestamp, query, limitToLast }
+  from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
+
+const RACINE = 'restau';
+const DEFAUTS = { vehicule: 'Mercedes SLK 230K (R170)', tva: 21, taux: 40 };
+const KINDS = ['pieces', 'mo', 'acomptes'];
+const MODES = ['Virement', 'Espèces', 'Chèque', 'Carte', 'Autre'];
+const LISTE_GARAGE = [
+  ['Amortisseurs AV', 231.60], ['Silent blocs train AR', 64.04], ['Silent blocs train AR', 98.55],
+  ['Joint collecteur échappement', 13.47], ['Silent blocs barre stab', 10.36], ['Silent blocs barre stab', 14.52],
+  ['Silent blocs barre stab', 10.62], ['Support de boîte de vitesses', 26.75], ['Support moteur', 82.31],
+  ['Support moteur', 82.31], ['Support moteur', 106.04], ['Bouchon carter', 3.51],
+  ['Sonde huile carter', 35.92], ['Huile moteur 5,5 L', 88.00], ['Filtre à huile', 12.80],
+  ['Plaquettes AV', 79.05], ['Disques AV', 146.80], ['Tuyau reniflard', 15.56],
+  ['Silent blocs bras suspension', 78.11], ['Silent blocs bras suspension', 78.11]
+];
+const VIDES = {
+  pieces: 'Aucune pièce pour l’instant.',
+  mo: 'Aucune heure saisie pour l’instant.',
+  acomptes: 'Aucun acompte versé pour l’instant.'
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+/* ---------------------------------------------------------------------
+   Outils
+   --------------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+const eur = new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' });
+const n2 = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false });
+const nh = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 2, useGrouping: false });
+const nh1 = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+const heureFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const jourFmt = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit' });
+const rtf = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
+const r2 = (x) => Math.round(x * 100) / 100;
+const r4 = (x) => Math.round(x * 10000) / 10000;
+const num = (v) => {
+  const n = parseFloat(String(v ?? '').replace(/[\s  €%]/g, '').replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+const aujourdhui = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const dateCourte = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
+const NOM_OK = /^[\p{L}\p{N} '’_-]{2,20}$/u;
+const cleNom = (n) => String(n).replace(/[.#$[\]/]/g, '_');
+const memo = {
+  lire(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  ecrire(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  effacer(k) { try { localStorage.removeItem(k); } catch {} }
+};
+
+const ALPHA = 'abcdefghijkmnpqrstuvwxyz23456789';
+function nouveauCode() {
+  const b = crypto.getRandomValues(new Uint8Array(24));
+  return Array.from(b, (x) => ALPHA[x % 32]).join('');
+}
+function lireCode(txt) {
+  const brut = String(txt || '').trim();
+  const morceau = brut.includes('#') ? brut.slice(brut.lastIndexOf('#') + 1) : brut;
+  const c = morceau.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  return /^[a-z0-9]{20,40}$/.test(c) ? c : null;
+}
+const formatCode = (c) => (c || '').match(/.{1,4}/g)?.join('-') || '–';
+
+function visible(msg) { const e = new Error(msg); e.visible = true; return e; }
+function messageErreur(err) {
+  if (err?.visible) return err.message;
+  const t = `${err?.code || ''} ${err?.message || ''}`.toLowerCase();
+  if (t.includes('permission')) return 'La base Firebase refuse l’accès : publiez les règles du fichier REGLES FIREBASE.txt (console Firebase > Realtime Database > Règles).';
+  if (t.includes('operation-not-allowed') || t.includes('admin-restricted')) return 'La connexion anonyme est désactivée : Firebase > Authentication > Mode de connexion > Anonyme > Activer.';
+  if (t.includes('network') || t.includes('offline') || t.includes('unavailable')) return 'Connexion impossible. Vérifiez le réseau puis réessayez.';
+  return 'Une erreur est survenue. Rechargez la page et réessayez.';
+}
+function avecDelai(promesse, ms, msg) {
+  let minuteur;
+  const delai = new Promise((_, rej) => { minuteur = setTimeout(() => rej(visible(msg)), ms); });
+  return Promise.race([promesse, delai]).finally(() => clearTimeout(minuteur));
+}
+
+/* ---------------------------------------------------------------------
+   État
+   --------------------------------------------------------------------- */
+const S = {
+  P: null, moi: null,
+  meta: { ...DEFAUTS }, metaServeur: {},
+  pieces: new Map(), mo: new Map(), acomptes: new Map(),
+  charge: { pieces: false, mo: false, acomptes: false },
+  membres: {}, journal: [], totaux: null
+};
+const base = () => `${RACINE}/${S.P}`;
+const coefTVA = () => 1 + num(S.meta.tva) / 100;
+const tauxDe = (d) => (typeof d.taux === 'number' ? d.taux : num(S.meta.taux));
+const tri = (a, b) => (a.ordre || 0) - (b.ordre || 0) || String(a.id).localeCompare(String(b.id));
+
+/* ---------------------------------------------------------------------
+   Retours visuels
+   --------------------------------------------------------------------- */
+let minuteurToast;
+function toast(msg, ms = 2800) {
+  const t = $('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(minuteurToast);
+  minuteurToast = setTimeout(() => { t.hidden = true; }, ms);
+}
+function bandeau(msg, ton = '') {
+  const b = $('bandeau');
+  b.textContent = msg || ''; b.className = `bandeau ${ton}`; b.hidden = !msg;
+}
+function ecrire(chemin, patch) {
+  return update(ref(db, chemin), patch).catch((err) => bandeau(messageErreur(err), 'err'));
+}
+function journal(texte, type = 'auto') {
+  if (!S.P || !texte) return;
+  push(ref(db, `${base()}/journal`), {
+    type, par: S.moi, le: serverTimestamp(), texte: String(texte).slice(0, 500)
+  }).catch(() => {});
+}
+async function copier(texte, okMsg) {
+  try {
+    await navigator.clipboard.writeText(texte);
+    toast(okMsg);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = texte; ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch {}
+    ta.remove();
+    toast(ok ? okMsg : 'Copie impossible : sélectionnez le texte à la main.');
+  }
+}
+async function partager({ titre, texte, url, okMsg }) {
+  if (navigator.share) {
+    try { await navigator.share(url ? { title: titre, text: texte, url } : { title: titre, text: texte }); return; }
+    catch (e) { if (e?.name === 'AbortError') return; }
+  }
+  copier(url ? `${texte}\n${url}` : texte, okMsg);
+}
+
+/* ---------------------------------------------------------------------
+   Accueil : créer ou rejoindre
+   --------------------------------------------------------------------- */
+function afficherAccueil() {
+  $('screen-app').hidden = true;
+  $('screen-accueil').hidden = false;
+  const viaLien = !!S.P;
+  $('acc-lien').hidden = !viaLien;
+  $('acc-choix').hidden = viaLien;
+  $('acc-nom').value = S.moi || memo.lire('restau.nom') || '';
+}
+function erreurAccueil(msg) { const e = $('acc-erreur'); e.textContent = msg || ''; e.hidden = !msg; }
+function nomSaisi() {
+  const n = $('acc-nom').value.trim().replace(/\s+/g, ' ');
+  if (!NOM_OK.test(n)) {
+    erreurAccueil('Indiquez un prénom de 2 à 20 caractères (lettres, chiffres, espace ou tiret).');
+    $('acc-nom').focus();
+    return null;
+  }
+  return n;
+}
+function occupe(on) {
+  ['btn-creer', 'btn-rejoindre', 'btn-rejoindre-lien'].forEach((id) => { $(id).disabled = on; });
+}
+async function connexion() {
+  if (!firebaseConfig?.apiKey || String(firebaseConfig.apiKey).includes('COLLEZ')) {
+    throw visible('La configuration Firebase est absente du fichier config.js.');
+  }
+  await signInAnonymously(auth);
+}
+
+$('btn-creer').addEventListener('click', async () => {
+  erreurAccueil('');
+  const nom = nomSaisi(); if (!nom) return;
+  occupe(true);
+  try {
+    await avecDelai(connexion(), 15000, 'Firebase ne répond pas. Vérifiez le réseau puis réessayez.');
+    const P = nouveauCode();
+    const b = `${RACINE}/${P}`;
+    const prefill = $('acc-prefill').checked;
+    const vehicule = ($('acc-vehicule').value.trim() || DEFAUTS.vehicule).slice(0, 120);
+    const up = {};
+    up[`${b}/meta`] = { vehicule, tva: DEFAUTS.tva, taux: DEFAUTS.taux, creePar: nom, creeLe: serverTimestamp() };
+    if (prefill) {
+      LISTE_GARAGE.forEach(([libelle, ht], i) => {
+        const k = push(ref(db, `${b}/pieces`)).key;
+        up[`${b}/pieces/${k}`] = { ordre: i + 1, libelle, note: '', ht, par: nom, le: serverTimestamp() };
+      });
+    }
+    const kj = push(ref(db, `${b}/journal`)).key;
+    up[`${b}/journal/${kj}`] = {
+      type: 'auto', par: nom, le: serverTimestamp(),
+      texte: prefill ? 'a créé le suivi avec la liste du garage (20 pièces)' : 'a créé le suivi'
+    };
+    await avecDelai(update(ref(db), up), 15000, 'La base ne confirme pas la création. Vérifiez le réseau puis réessayez.');
+    S.P = P; S.moi = nom;
+    memo.ecrire('restau.projet', P);
+    memo.ecrire('restau.nom', nom);
+    ouvrir({ nouveau: true });
+  } catch (err) {
+    erreurAccueil(messageErreur(err));
+  } finally {
+    occupe(false);
+  }
+});
+
+async function rejoindre(P) {
+  erreurAccueil('');
+  const nom = nomSaisi(); if (!nom) return;
+  if (!P) { erreurAccueil('Collez le lien ou le code reçu.'); $('acc-code').focus(); return; }
+  occupe(true);
+  try {
+    await avecDelai(connexion(), 15000, 'Firebase ne répond pas. Vérifiez le réseau puis réessayez.');
+    const snap = await avecDelai(get(ref(db, `${RACINE}/${P}/meta`)), 15000, 'La base ne répond pas. Vérifiez le réseau puis réessayez.');
+    if (!snap.exists()) throw visible('Aucun suivi ne correspond à ce code. Vérifiez le lien reçu.');
+    S.P = P; S.moi = nom;
+    memo.ecrire('restau.projet', P);
+    memo.ecrire('restau.nom', nom);
+    ouvrir({});
+  } catch (err) {
+    erreurAccueil(messageErreur(err));
+  } finally {
+    occupe(false);
+  }
+}
+$('btn-rejoindre').addEventListener('click', () => rejoindre(lireCode($('acc-code').value)));
+$('btn-rejoindre-lien').addEventListener('click', () => rejoindre(S.P));
+$('acc-nom').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (S.P) rejoindre(S.P);
+});
+
+/* ---------------------------------------------------------------------
+   Ouverture d'un suivi
+   --------------------------------------------------------------------- */
+async function ouvrir({ nouveau = false } = {}) {
+  $('screen-accueil').hidden = true;
+  $('screen-app').hidden = false;
+  $('menu-code').textContent = formatCode(S.P);
+  $('menu-nom').value = S.moi;
+  majReglages();
+  KINDS.forEach(rendre);
+  rendrePersonnes();
+  rendreJournal();
+
+  try { await connexion(); }
+  catch (err) { bandeau(messageErreur(err), 'err'); return; }
+
+  const b = base();
+  const surErreur = (err) => bandeau(messageErreur(err), 'err');
+
+  onValue(ref(db, `${b}/meta`), (snap) => {
+    if (!snap.exists()) {
+      bandeau('Ce suivi est introuvable ou a été supprimé. Menu ⋯ > Quitter ce suivi, puis créez-en un autre.', 'err');
+      return;
+    }
+    S.metaServeur = snap.val() || {};
+    S.meta = { ...DEFAUTS, ...S.metaServeur };
+    majReglages();
+    rendre('pieces');
+    rendre('mo');
+  }, surErreur);
+
+  KINDS.forEach((kind) => {
+    onValue(ref(db, `${b}/${kind}`), (snap) => recevoir(kind, snap.val() || {}), surErreur);
+  });
+
+  onValue(query(ref(db, `${b}/journal`), limitToLast(80)), (snap) => {
+    const v = snap.val() || {};
+    S.journal = Object.entries(v).map(([id, j]) => ({ id, ...j })).sort((x, y) => (y.le || 0) - (x.le || 0));
+    rendreJournal();
+  }, surErreur);
+
+  onValue(ref(db, `${b}/membres`), (snap) => { S.membres = snap.val() || {}; rendrePersonnes(); }, surErreur);
+
+  if (!nouveau) {
+    get(ref(db, `${b}/membres/${cleNom(S.moi)}`))
+      .then((s) => { if (!s.exists()) journal('a rejoint le suivi'); })
+      .catch(() => {});
+  }
+  surveillerConnexion(b);
+  setInterval(rendrePersonnes, 60000);
+  if (nouveau) setTimeout(() => toast('Suivi créé. Touchez « Partager » pour envoyer le lien à l’autre personne.', 6500), 400);
+}
+
+function surveillerConnexion(b) {
+  let minuteur = null;
+  onValue(ref(db, '.info/connected'), (snap) => {
+    clearTimeout(minuteur);
+    if (snap.val() === true) {
+      $('net').hidden = true;
+      const moi = ref(db, `${b}/membres/${cleNom(S.moi)}`);
+      onDisconnect(moi).update({ enLigne: false, vu: serverTimestamp() }).catch(() => {});
+      update(moi, { nom: S.moi, enLigne: true, vu: serverTimestamp() }).catch(() => {});
+    } else {
+      minuteur = setTimeout(() => { $('net').hidden = false; }, 4000);
+    }
+  });
+}
+
+/* ---------------------------------------------------------------------
+   Lignes : pièces, main-d'œuvre, acomptes
+   --------------------------------------------------------------------- */
+const GABARITS = {
+  pieces: () => `
+    <div class="grp g-head">
+      <div class="cell c-lib">
+        <input class="t-main" data-k="libelle" type="text" maxlength="120" placeholder="Nom de la pièce" aria-label="Pièce">
+        <input class="t-note" data-k="note" type="text" maxlength="200" placeholder="Référence, fournisseur, remarque…" aria-label="Note sur la pièce">
+      </div>
+      <button type="button" class="cell c-del del" data-act="del" aria-label="Supprimer la pièce">×</button>
+    </div>
+    <div class="grp g-nums">
+      <div class="cell c-ht"><span class="fl">HTVA</span><input class="num" data-k="ht" type="text" inputmode="decimal" placeholder="0,00" aria-label="Prix HTVA"></div>
+      <div class="cell c-ttc"><span class="fl">TVAC</span><input class="num" data-k="ttc" type="text" inputmode="decimal" placeholder="0,00" aria-label="Prix TVAC"></div>
+    </div>`,
+  mo: () => `
+    <div class="grp g-head">
+      <div class="cell c-trav"><input class="t-main" data-k="travail" type="text" maxlength="120" placeholder="Travail effectué" aria-label="Travail effectué"></div>
+      <button type="button" class="cell c-del del" data-act="del" aria-label="Supprimer ces heures">×</button>
+    </div>
+    <div class="grp g-nums">
+      <div class="cell c-date"><span class="fl">Date</span><input data-k="date" type="date" aria-label="Date"></div>
+      <div class="cell c-h"><span class="fl">Heures</span><input class="num" data-k="heures" type="text" inputmode="decimal" placeholder="0" aria-label="Heures"></div>
+      <div class="cell c-taux"><span class="fl">€/h</span><input class="num" data-k="taux" type="text" inputmode="decimal" aria-label="Taux horaire"></div>
+      <div class="cell c-mt"><span class="fl">Montant</span><div class="mo-montant vide">–</div></div>
+    </div>`,
+  acomptes: () => `
+    <div class="grp g-head">
+      <div class="cell c-note"><input data-k="note" type="text" maxlength="200" placeholder="Note (ex. à la commande des pièces)" aria-label="Note sur l’acompte"></div>
+      <button type="button" class="cell c-del del" data-act="del" aria-label="Supprimer l’acompte">×</button>
+    </div>
+    <div class="grp g-nums">
+      <div class="cell c-date"><span class="fl">Date</span><input data-k="date" type="date" aria-label="Date du versement"></div>
+      <div class="cell c-mode"><span class="fl">Mode</span><select data-k="mode" aria-label="Mode de paiement">${MODES.map((m) => `<option>${m}</option>`).join('')}</select></div>
+      <div class="cell c-mt"><span class="fl">Montant</span><input class="num" data-k="montant" type="text" inputmode="decimal" placeholder="0,00" aria-label="Montant versé"></div>
+    </div>`
+};
+const lignes = { pieces: new Map(), mo: new Map(), acomptes: new Map() };
+
+function creerLigne(kind, id) {
+  const row = document.createElement('div');
+  row.className = `row k-${kind}`;
+  row.dataset.id = id;
+  row.innerHTML = GABARITS[kind]() +
+    '<div class="confirm" hidden><span>Supprimer cette ligne ?</span>' +
+    '<button type="button" class="danger" data-act="oui">Supprimer</button>' +
+    '<button type="button" class="ghost" data-act="non">Annuler</button></div>';
+  row.querySelectorAll('[data-k]').forEach((el) => { el.id = `f-${kind}-${id}-${el.dataset.k}`; });
+  lignes[kind].set(id, row);
+  return row;
+}
+
+function valeur(kind, k, d) {
+  switch (k) {
+    case 'ht': return d.ht ? n2.format(d.ht) : '';
+    case 'ttc': return d.ht ? n2.format(r2(d.ht * coefTVA())) : '';
+    case 'heures': return d.heures ? nh.format(d.heures) : '';
+    case 'taux': return nh.format(tauxDe(d));
+    case 'montant': return d.montant ? n2.format(d.montant) : '';
+    case 'mode': return MODES.includes(d.mode) ? d.mode : MODES[0];
+    default: return d[k] ?? '';
+  }
+}
+function majMontantMo(row, d) {
+  const o = row.querySelector('.mo-montant');
+  const h = +d.heures || 0;
+  o.textContent = h ? eur.format(r2(h * tauxDe(d))) : '–';
+  o.classList.toggle('vide', !h);
+}
+function remplir(kind, row, d) {
+  row.querySelectorAll('[data-k]').forEach((el) => {
+    if (document.activeElement !== el) el.value = valeur(kind, el.dataset.k, d);
+  });
+  if (kind === 'mo') majMontantMo(row, d);
+}
+
+function rendre(kind) {
+  const box = $(`rows-${kind}`);
+  const map = S[kind];
+  const els = lignes[kind];
+  els.forEach((row, id) => { if (!map.has(id)) { row.remove(); els.delete(id); } });
+  let prev = null;
+  [...map.values()].sort(tri).forEach((d) => {
+    const row = els.get(d.id) || creerLigne(kind, d.id);
+    remplir(kind, row, d);
+    const voulu = prev ? prev.nextSibling : box.firstChild;
+    if (row !== voulu) box.insertBefore(row, voulu);
+    prev = row;
+  });
+  const vide = $(`empty-${kind}`);
+  vide.hidden = map.size > 0;
+  vide.textContent = S.charge[kind] ? VIDES[kind] : 'Chargement…';
+  calculer();
+}
+
+function recevoir(kind, obj) {
+  const map = S[kind];
+  Object.entries(obj).forEach(([id, d]) => {
+    const cur = map.get(id);
+    if (!cur) { map.set(id, { id, ...d }); return; }
+    Object.keys(d).forEach((k) => {
+      const el = document.getElementById(`f-${kind}-${id}-${k}`);
+      if (!el || document.activeElement !== el) cur[k] = d[k];
+    });
+  });
+  [...map.keys()].forEach((id) => { if (!(id in obj)) map.delete(id); });
+  S.charge[kind] = true;
+  rendre(kind);
+}
+
+function messageJournal(kind, k, avant, val, d) {
+  const q = (s) => `« ${s} »`;
+  const a = typeof avant === 'number' ? avant : num(avant);
+  if (kind === 'pieces') {
+    const nomP = d.libelle || 'pièce sans nom';
+    if (k === 'libelle') {
+      if (!val || val === avant) return null;
+      return avant ? `a renommé ${q(avant)} en ${q(val)}` : `a ajouté la pièce ${q(val)}`;
+    }
+    if (k === 'note') return val && val !== avant ? `a noté sur ${q(nomP)} : ${val}` : null;
+    if (k === 'ht') {
+      if (r2(a) === r2(val)) return null;
+      return a ? `a modifié ${q(nomP)} : ${eur.format(a)} → ${eur.format(val)} HTVA`
+               : `a chiffré ${q(nomP)} : ${eur.format(val)} HTVA (${eur.format(r2(val * coefTVA()))} TVAC)`;
+    }
+  }
+  if (kind === 'mo') {
+    const t = d.travail || 'travail sans nom';
+    if (k === 'travail') {
+      if (!val || val === avant) return null;
+      return avant ? `a renommé le travail ${q(avant)} en ${q(val)}` : `a ajouté le travail ${q(val)}`;
+    }
+    if (k === 'heures') {
+      if (a === val) return null;
+      return a ? `a modifié les heures de ${q(t)} : ${nh1.format(a)} → ${nh1.format(val)} h`
+               : `a saisi ${nh1.format(val)} h pour ${q(t)}`;
+    }
+    if (k === 'taux') return a === val ? null : `a passé ${q(t)} à ${nh.format(val)} €/h`;
+  }
+  if (kind === 'acomptes' && k === 'montant') {
+    if (r2(a) === r2(val)) return null;
+    return a ? `a corrigé un acompte : ${eur.format(a)} → ${eur.format(val)}`
+             : `a enregistré un acompte de ${eur.format(val)} (${d.mode || MODES[0]})`;
+  }
+  return null;
+}
+
+function enregistrerChamp(kind, id, el) {
+  const d = S[kind].get(id); if (!d) return;
+  const k = el.dataset.k;
+  let avant = null;
+  try { avant = JSON.parse(el.dataset.avant ?? 'null'); } catch {}
+  let cle = k, val;
+  if (el.classList.contains('num')) {
+    const v = num(el.value);
+    if (kind === 'pieces' && k === 'ttc') { cle = 'ht'; val = r4(v / coefTVA()); }
+    else if (k === 'ht') val = r4(v);
+    else val = r2(v);
+  } else {
+    val = String(el.value).trim().slice(0, k === 'note' ? 200 : 120);
+  }
+  d[cle] = val;
+  ecrire(`${base()}/${kind}/${id}`, { [cle]: val, par: S.moi, le: serverTimestamp() });
+  const row = el.closest('.row');
+  remplir(kind, row, d);
+  if (el.classList.contains('num')) el.value = valeur(kind, k, d);
+  el.dataset.avant = JSON.stringify(val);
+  const msg = messageJournal(kind, cle, avant, val, d);
+  if (msg) journal(msg);
+  calculer();
+}
+
+function supprimer(kind, id) {
+  const d = S[kind].get(id); if (!d) return;
+  S[kind].delete(id);
+  rendre(kind);
+  remove(ref(db, `${base()}/${kind}/${id}`)).catch((err) => bandeau(messageErreur(err), 'err'));
+  let msg = null;
+  if (kind === 'pieces' && (d.libelle || d.ht)) msg = `a supprimé la pièce « ${d.libelle || 'sans nom'} » (${eur.format(+d.ht || 0)} HTVA)`;
+  if (kind === 'mo' && (d.travail || d.heures)) msg = `a supprimé le travail « ${d.travail || 'sans nom'} » (${nh1.format(+d.heures || 0)} h)`;
+  if (kind === 'acomptes' && d.montant) msg = `a supprimé l’acompte de ${eur.format(d.montant)}${d.date ? ` du ${dateCourte(d.date)}` : ''}`;
+  if (msg) journal(msg);
+}
+
+function ajouter(kind) {
+  const commun = { ordre: Date.now(), par: S.moi, le: serverTimestamp() };
+  const data = kind === 'pieces' ? { ...commun, libelle: '', note: '', ht: 0 }
+    : kind === 'mo' ? { ...commun, date: aujourdhui(), travail: '', heures: 0, taux: num(S.meta.taux) }
+    : { ...commun, date: aujourdhui(), mode: MODES[0], note: '', montant: 0 };
+  const r = push(ref(db, `${base()}/${kind}`));
+  S[kind].set(r.key, { id: r.key, ...data, le: Date.now() });
+  rendre(kind);
+  set(r, data).catch((err) => bandeau(messageErreur(err), 'err'));
+  const row = lignes[kind].get(r.key);
+  if (row) {
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const cible = { pieces: 'libelle', mo: 'travail', acomptes: 'montant' }[kind];
+    row.querySelector(`[data-k="${cible}"]`)?.focus({ preventScroll: true });
+  }
+}
+
+KINDS.forEach((kind) => {
+  const box = $(`rows-${kind}`);
+  box.addEventListener('focusin', (e) => {
+    const el = e.target; if (!el.dataset?.k) return;
+    const d = S[kind].get(el.closest('.row').dataset.id); if (!d) return;
+    const k = el.dataset.k === 'ttc' ? 'ht' : el.dataset.k;
+    el.dataset.avant = JSON.stringify(k === 'taux' ? tauxDe(d) : (d[k] ?? ''));
+  });
+  box.addEventListener('input', (e) => {
+    const el = e.target; if (!el.classList.contains('num')) return;
+    const row = el.closest('.row');
+    const d = S[kind].get(row.dataset.id); if (!d) return;
+    const k = el.dataset.k, v = num(el.value);
+    if (kind === 'pieces') {
+      if (k === 'ht') {
+        d.ht = v;
+        row.querySelector('[data-k="ttc"]').value = v ? n2.format(r2(v * coefTVA())) : '';
+      } else {
+        d.ht = r4(v / coefTVA());
+        row.querySelector('[data-k="ht"]').value = v ? n2.format(r2(d.ht)) : '';
+      }
+    } else {
+      d[k] = v;
+      if (kind === 'mo') majMontantMo(row, d);
+    }
+    calculer();
+  });
+  box.addEventListener('change', (e) => {
+    const el = e.target; if (!el.dataset?.k) return;
+    enregistrerChamp(kind, el.closest('.row').dataset.id, el);
+  });
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    const row = b.closest('.row');
+    const act = b.dataset.act;
+    if (act === 'del') { row.querySelector('.confirm').hidden = false; row.querySelector('[data-act="non"]').focus(); }
+    else if (act === 'non') row.querySelector('.confirm').hidden = true;
+    else if (act === 'oui') supprimer(kind, row.dataset.id);
+  });
+});
+document.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => ajouter(b.dataset.add)));
+
+/* ---------------------------------------------------------------------
+   Réglages : véhicule, TVA des pièces, taux horaire
+   --------------------------------------------------------------------- */
+function majReglages() {
+  const m = S.meta;
+  if (document.activeElement !== $('vehicule')) $('vehicule').value = m.vehicule || DEFAUTS.vehicule;
+  if (document.activeElement !== $('tva')) $('tva').value = nh.format(num(m.tva));
+  if (document.activeElement !== $('taux')) $('taux').value = nh.format(num(m.taux));
+  document.title = `${m.vehicule || 'Suivi'} · Restauration`;
+}
+$('vehicule').addEventListener('change', (e) => {
+  const v = e.target.value.trim().slice(0, 120) || DEFAUTS.vehicule;
+  e.target.value = v;
+  if (v === S.metaServeur.vehicule) return;
+  S.meta.vehicule = v;
+  ecrire(`${base()}/meta`, { vehicule: v });
+  journal(`a renommé le véhicule en « ${v} »`);
+});
+$('tva').addEventListener('input', (e) => { S.meta.tva = num(e.target.value); rendre('pieces'); });
+$('tva').addEventListener('change', (e) => {
+  const v = r2(num(e.target.value));
+  S.meta.tva = v; e.target.value = nh.format(v);
+  if (v !== num(S.metaServeur.tva)) {
+    ecrire(`${base()}/meta`, { tva: v });
+    journal(`a passé la TVA des pièces à ${nh.format(v)} %`);
+  }
+  rendre('pieces');
+});
+$('taux').addEventListener('change', (e) => {
+  const v = r2(num(e.target.value));
+  S.meta.taux = v; e.target.value = nh.format(v);
+  if (v !== num(S.metaServeur.taux)) {
+    ecrire(`${base()}/meta`, { taux: v });
+    journal(`a passé le taux horaire par défaut à ${nh.format(v)} €/h`);
+  }
+});
+
+const btnTaux = $('btn-appliquer-taux');
+let minuteurTaux;
+function desarmerTaux() { btnTaux.dataset.arme = ''; btnTaux.classList.remove('danger'); btnTaux.textContent = 'Appliquer le taux à toutes les lignes'; }
+btnTaux.addEventListener('click', () => {
+  const t = num(S.meta.taux);
+  if (btnTaux.dataset.arme !== '1') {
+    btnTaux.dataset.arme = '1'; btnTaux.classList.add('danger');
+    btnTaux.textContent = `Confirmer : ${nh.format(t)} €/h sur toutes les lignes`;
+    clearTimeout(minuteurTaux); minuteurTaux = setTimeout(desarmerTaux, 4500);
+    return;
+  }
+  clearTimeout(minuteurTaux); desarmerTaux();
+  const up = {}; let n = 0;
+  S.mo.forEach((d, id) => { if (tauxDe(d) !== t) { d.taux = t; up[`${id}/taux`] = t; n++; } });
+  if (n) {
+    ecrire(`${base()}/mo`, up);
+    journal(`a appliqué ${nh.format(t)} €/h à ${n} ligne${n > 1 ? 's' : ''} de main-d’œuvre`);
+  }
+  rendre('mo');
+  toast(n ? `Taux appliqué à ${n} ligne${n > 1 ? 's' : ''}` : 'Toutes les lignes ont déjà ce taux');
+});
+
+/* ---------------------------------------------------------------------
+   Totaux, acomptes et solde
+   --------------------------------------------------------------------- */
+function calculer() {
+  const c = coefTVA();
+  let sht = 0, nP = 0;
+  S.pieces.forEach((d) => { sht += +d.ht || 0; nP++; });
+  const pHT = r2(sht), pTTC = r2(sht * c), pTVA = r2(pTTC - pHT);
+  let h = 0, mo = 0;
+  S.mo.forEach((d) => { const x = +d.heures || 0; h += x; mo += r2(x * tauxDe(d)); });
+  h = r2(h); mo = r2(mo);
+  let v = 0, nA = 0;
+  S.acomptes.forEach((d) => { const m = +d.montant || 0; if (m) { v += m; nA++; } });
+  v = r2(v);
+  const total = r2(pTTC + mo), solde = r2(total - v);
+  S.totaux = { pHT, pTTC, pTVA, h, mo, v, total, solde };
+
+  $('k-total').textContent = eur.format(total);
+  $('k-total-sub').textContent = `Pièces ${eur.format(pTTC)} + MO ${eur.format(mo)}`;
+  $('k-verse').textContent = eur.format(v);
+  $('k-verse-sub').textContent = nA ? `${nA} acompte${nA > 1 ? 's' : ''}` : 'Aucun acompte';
+
+  const boite = $('k-solde-box');
+  boite.classList.remove('ok', 'warn');
+  let libSolde = 'Solde à payer', valSolde = solde, sousSolde;
+  if (solde < 0) {
+    libSolde = 'Trop-perçu'; valSolde = -solde; sousSolde = 'Versé au-delà du total'; boite.classList.add('warn');
+  } else if (solde === 0 && total > 0) {
+    libSolde = 'Soldé'; sousSolde = 'Tout est réglé'; boite.classList.add('ok');
+  } else {
+    sousSolde = total > 0 ? `${Math.min(100, Math.round((v / total) * 100))} % déjà versé` : 'Rien à payer pour l’instant';
+  }
+  $('k-solde-label').textContent = libSolde;
+  $('k-solde').textContent = eur.format(valSolde);
+  $('k-solde-sub').textContent = sousSolde;
+  $('j-solde').textContent = `${libSolde} ${eur.format(valSolde)}`;
+
+  $('tf-pieces-n').textContent = `(${nP} ligne${nP > 1 ? 's' : ''})`;
+  $('tf-pieces-ht').textContent = eur.format(pHT);
+  $('tf-pieces-ttc').textContent = eur.format(pTTC);
+  $('tf-pieces-tva').textContent = `Dont TVA ${nh.format(num(S.meta.tva))} % : ${eur.format(pTVA)}, calculée sur le total HTVA.`;
+  $('tf-mo-h').textContent = `${nh1.format(h)} h`;
+  $('tf-mo-montant').textContent = eur.format(mo);
+  $('tf-ac-total').textContent = eur.format(v);
+
+  $('s-pieces').textContent = eur.format(pTTC);
+  $('s-mo').textContent = eur.format(mo);
+  $('s-total').textContent = eur.format(total);
+  $('s-verse').textContent = v ? `− ${eur.format(v)}` : eur.format(0);
+  $('s-solde-label').textContent = libSolde;
+  $('s-solde').textContent = eur.format(valSolde);
+}
+
+function recapTexte() {
+  const t = S.totaux || {};
+  const c = coefTVA();
+  const L = [`Suivi de restauration — ${S.meta.vehicule}`, ''];
+  L.push(`PIÈCES (TVA ${nh.format(num(S.meta.tva))} %)`);
+  const pieces = [...S.pieces.values()].sort(tri);
+  if (!pieces.length) L.push('- Aucune pièce');
+  pieces.forEach((d) => L.push(`- ${d.libelle || 'Sans nom'} : ${eur.format(+d.ht || 0)} HTVA / ${eur.format(r2((+d.ht || 0) * c))} TVAC`));
+  L.push(`Total pièces : ${eur.format(t.pHT)} HTVA — ${eur.format(t.pTTC)} TVAC`, '');
+  L.push('MAIN-D’ŒUVRE (sans TVA)');
+  const mos = [...S.mo.values()].sort(tri);
+  if (!mos.length) L.push('- Aucune heure saisie');
+  mos.forEach((d) => {
+    const h = +d.heures || 0;
+    L.push(`- ${d.date ? `${dateCourte(d.date)} ` : ''}${d.travail || 'Sans nom'} : ${nh1.format(h)} h × ${nh.format(tauxDe(d))} €/h = ${eur.format(r2(h * tauxDe(d)))}`);
+  });
+  L.push(`Total main-d’œuvre : ${nh1.format(t.h)} h — ${eur.format(t.mo)}`, '');
+  L.push('ACOMPTES');
+  const acs = [...S.acomptes.values()].filter((d) => +d.montant).sort((x, y) => String(x.date).localeCompare(String(y.date)));
+  if (!acs.length) L.push('- Aucun acompte');
+  acs.forEach((d) => L.push(`- ${d.date ? `${dateCourte(d.date)} ` : ''}${d.mode || ''}${d.note ? ` (${d.note})` : ''} : ${eur.format(d.montant)}`));
+  L.push(`Total versé : ${eur.format(t.v)}`, '');
+  L.push(`TOTAL À PAYER : ${eur.format(t.total)}`);
+  L.push(t.solde < 0 ? `TROP-PERÇU : ${eur.format(-t.solde)}` : `SOLDE RESTANT : ${eur.format(t.solde)}`);
+  return L.join('\n');
+}
+
+/* ---------------------------------------------------------------------
+   Personnes, journal, partage, menu
+   --------------------------------------------------------------------- */
+function relatif(ts) {
+  if (!ts) return 'il y a un moment';
+  const s = Math.round((ts - Date.now()) / 1000);
+  const abs = Math.abs(s);
+  if (abs < 60) return 'à l’instant';
+  if (abs < 3600) return rtf.format(Math.round(s / 60), 'minute');
+  if (abs < 86400) return rtf.format(Math.round(s / 3600), 'hour');
+  return rtf.format(Math.round(s / 86400), 'day');
+}
+function horodatage(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const hier = new Date(now); hier.setDate(now.getDate() - 1);
+  const memeJour = (x, y) => x.toDateString() === y.toDateString();
+  if (memeJour(d, now)) return `aujourd’hui ${heureFmt.format(d)}`;
+  if (memeJour(d, hier)) return `hier ${heureFmt.format(d)}`;
+  return `${jourFmt.format(d)} ${heureFmt.format(d)}`;
+}
+function personne(texte, enLigne) {
+  const s = document.createElement('span'); s.className = 'pers';
+  const dot = document.createElement('i'); dot.className = `dot${enLigne ? ' on' : ''}`;
+  s.append(dot, document.createTextNode(texte));
+  return s;
+}
+function rendrePersonnes() {
+  const p = $('people'); p.textContent = '';
+  if (!S.moi) return;
+  p.append(personne(`Vous : ${S.moi}`, true));
+  const autres = Object.values(S.membres).filter((m) => m && m.nom && m.nom !== S.moi);
+  if (!autres.length) { p.append(personne('En attente de la deuxième personne : touchez « Partager »', false)); return; }
+  autres.forEach((m) => p.append(personne(`${m.nom} : ${m.enLigne ? 'en ligne' : `vu ${relatif(m.vu)}`}`, !!m.enLigne)));
+}
+function rendreJournal() {
+  const ul = $('journal'); ul.textContent = '';
+  S.journal.forEach((j) => {
+    const li = document.createElement('li');
+    li.className = `j ${j.type === 'note' ? 'j-note' : 'j-auto'}${j.par === S.moi ? ' moi' : ''}`;
+    const p = document.createElement('p'); p.className = 'j-txt';
+    const qui = document.createElement('b'); qui.textContent = j.par || '?';
+    p.append(qui, document.createTextNode(j.type === 'note' ? ` : ${j.texte || ''}` : ` ${j.texte || ''}`));
+    const t = document.createElement('time');
+    if (j.le) t.dateTime = new Date(j.le).toISOString();
+    t.textContent = horodatage(j.le);
+    li.append(p, t);
+    ul.append(li);
+  });
+  $('empty-journal').hidden = S.journal.length > 0;
+}
+$('j-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const t = $('j-texte').value.trim();
+  if (!t || !S.P) return;
+  journal(t, 'note');
+  $('j-texte').value = '';
+});
+
+const lienPartage = () => `${location.origin}${location.pathname}#${S.P}`;
+$('btn-partager').addEventListener('click', () => partager({
+  titre: 'Suivi de restauration',
+  texte: `Suivi de restauration ${S.meta.vehicule} : pièces, main-d’œuvre et acomptes. Ouvre le lien et indique ton prénom.`,
+  url: lienPartage(),
+  okMsg: 'Lien copié : collez-le dans un message à l’autre personne.'
+}));
+$('btn-copier-lien').addEventListener('click', () => copier(lienPartage(), 'Lien copié'));
+$('btn-recap').addEventListener('click', () => partager({
+  titre: `Récapitulatif ${S.meta.vehicule}`, texte: recapTexte(), okMsg: 'Récapitulatif copié'
+}));
+$('btn-menu').addEventListener('click', () => {
+  const m = $('menu');
+  m.hidden = !m.hidden;
+  $('btn-menu').setAttribute('aria-expanded', String(!m.hidden));
+});
+$('btn-nom').addEventListener('click', () => {
+  const n = $('menu-nom').value.trim().replace(/\s+/g, ' ');
+  if (!NOM_OK.test(n)) { toast('Prénom invalide : 2 à 20 caractères.'); return; }
+  if (n === S.moi) return;
+  const ancien = S.moi;
+  update(ref(db, `${base()}/membres/${cleNom(ancien)}`), { enLigne: false, vu: serverTimestamp() }).catch(() => {});
+  S.moi = n;
+  memo.ecrire('restau.nom', n);
+  const moi = ref(db, `${base()}/membres/${cleNom(n)}`);
+  onDisconnect(moi).update({ enLigne: false, vu: serverTimestamp() }).catch(() => {});
+  update(moi, { nom: n, enLigne: true, vu: serverTimestamp() }).catch(() => {});
+  journal(`a changé de prénom (anciennement ${ancien})`);
+  rendrePersonnes(); rendreJournal();
+  toast('Prénom modifié');
+});
+const btnQuitter = $('btn-quitter');
+let minuteurQuitter;
+btnQuitter.addEventListener('click', () => {
+  if (btnQuitter.dataset.arme !== '1') {
+    btnQuitter.dataset.arme = '1';
+    btnQuitter.textContent = 'Confirmer : quitter ce suivi sur cet appareil';
+    clearTimeout(minuteurQuitter);
+    minuteurQuitter = setTimeout(() => { btnQuitter.dataset.arme = ''; btnQuitter.textContent = 'Quitter ce suivi sur cet appareil'; }, 4500);
+    return;
+  }
+  update(ref(db, `${base()}/membres/${cleNom(S.moi)}`), { enLigne: false, vu: serverTimestamp() }).catch(() => {});
+  memo.effacer('restau.projet');
+  location.replace(location.pathname);
+});
+
+/* ---------------------------------------------------------------------
+   Démarrage
+   --------------------------------------------------------------------- */
+function demarrer() {
+  const depuisLien = lireCode(decodeURIComponent(location.hash.slice(1)));
+  if (depuisLien) {
+    memo.ecrire('restau.projet', depuisLien);
+    try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+  }
+  S.P = depuisLien || lireCode(memo.lire('restau.projet'));
+  const nom = memo.lire('restau.nom');
+  S.moi = nom && NOM_OK.test(nom) ? nom : null;
+  if (S.P && S.moi) ouvrir({});
+  else afficherAccueil();
+}
+demarrer();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
